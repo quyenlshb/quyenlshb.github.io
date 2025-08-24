@@ -1,623 +1,606 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trắc nghiệm từ vựng tiếng Nhật</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', 'Noto Sans JP', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f0f4f8;
-            color: #2c3e50;
-            flex-direction: column;
-            padding: 20px;
-        }
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, onSnapshot, getDocs } from 'firebase/firestore';
 
-        .card-container {
-            width: 90%;
-            max-width: 600px;
-            text-align: center;
-            padding: 30px;
-            background-color: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
+// IMPORTANT: Do not remove these global variables
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
 
-        .japanese-word {
-            font-size: 3em;
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: #34495e;
-            transition: opacity 0.5s ease-in-out;
-        }
+const defaultCourse = {
+  name: "80 từ vựng thông dụng",
+  words: [
+    { japanese: "こんにちは", hiragana: "konnichiwa", vietnamese: "Xin chào" },
+    { japanese: "ありがとう", hiragana: "arigatou", vietnamese: "Cảm ơn" },
+    { japanese: "さようなら", hiragana: "sayounara", vietnamese: "Tạm biệt" },
+    { japanese: "はい", hiragana: "hai", vietnamese: "Vâng, có" },
+    { japanese: "いいえ", hiragana: "iie", vietnamese: "Không" },
+    { japanese: "ごめんなさい", hiragana: "gomennasai", vietnamese: "Xin lỗi" },
+    { japanese: "すみません", hiragana: "sumimasen", vietnamese: "Xin lỗi, làm phiền" },
+    { japanese: "おやすみ", hiragana: "oyasumi", vietnamese: "Chúc ngủ ngon" },
+    { japanese: "おはようございます", hiragana: "ohayou gozaimasu", vietnamese: "Chào buổi sáng" },
+    { japanese: "いただきます", hiragana: "itadakimasu", vietnamese: "Mời ăn" },
+    { japanese: "ごちそうさまでした", hiragana: "gochisousama deshita", vietnamese: "Cảm ơn vì bữa ăn ngon" },
+    { japanese: "はじめまして", hiragana: "hajimemashite", vietnamese: "Rất vui được gặp bạn" },
+    { japanese: "どうぞ", hiragana: "douzo", vietnamese: "Xin mời" },
+    { japanese: "おいしい", hiragana: "oishii", vietnamese: "Ngon" },
+    { japanese: "げんき", hiragana: "genki", vietnamese: "Khỏe mạnh" },
+    { japanese: "だれ", hiragana: "dare", vietnamese: "Ai" },
+    { japanese: "どこ", hiragana: "doko", vietnamese: "Ở đâu" },
+    { japanese: "いつ", hiragana: "itsu", vietnamese: "Khi nào" },
+    { japanese: "なに", hiragana: "nani", vietnamese: "Cái gì" },
+    { japanese: "どうして", hiragana: "doushite", vietnamese: "Tại sao" },
+    { japanese: "いくら", hiragana: "ikura", vietnamese: "Bao nhiêu" },
+    { japanese: "わたし", hiragana: "watashi", vietnamese: "Tôi" },
+    { japanese: "あなた", hiragana: "anata", vietnamese: "Bạn" },
+    { japanese: "かれ", hiragana: "kare", vietnamese: "Anh ấy" },
+    { japanese: "かのじょ", hiragana: "kanojo", vietnamese: "Cô ấy" },
+    { japanese: "がくせい", hiragana: "gakusei", vietnamese: "Học sinh" },
+    { japanese: "せんせい", hiragana: "sensei", vietnamese: "Giáo viên" },
+    { japanese: "いしゃ", hiragana: "isha", vietnamese: "Bác sĩ" },
+    { japanese: "かいしゃいん", hiragana: "kaishain", vietnamese: "Nhân viên công ty" },
+    { japanese: "ほん", hiragana: "hon", vietnamese: "Sách" },
+    { japanese: "えんぴつ", hiragana: "enpitsu", vietnamese: "Bút chì" },
+    { japanese: "かさ", hiragana: "kasa", vietnamese: "Ô" },
+    { japanese: "くるま", hiragana: "kuruma", vietnamese: "Ô tô" },
+    { japanese: "でんわ", hiragana: "denwa", vietnamese: "Điện thoại" },
+    { japanese: "てがみ", hiragana: "tegami", vietnamese: "Thư" },
+    { japanese: "かばん", hiragana: "kaban", vietnamese: "Cặp sách" },
+    { japanese: "とけい", hiragana: "tokei", vietnamese: "Đồng hồ" },
+    { japanese: "いぬ", hiragana: "inu", vietnamese: "Chó" },
+    { japanese: "ねこ", hiragana: "neko", vietnamese: "Mèo" },
+    { japanese: "さかな", hiragana: "sakana", vietnamese: "Cá" },
+    { japanese: "みず", hiragana: "mizu", vietnamese: "Nước" },
+    { japanese: "おちゃ", hiragana: "ocha", vietnamese: "Trà" },
+    { japanese: "ごはん", hiragana: "gohan", vietnamese: "Cơm" },
+    { japanese: "パン", hiragana: "pan", vietnamese: "Bánh mì" },
+    { japanese: "くだもの", hiragana: "kudamono", vietnamese: "Hoa quả" },
+    { japanese: "やさい", hiragana: "yasai", vietnamese: "Rau" },
+    { japanese: "てんき", hiragana: "tenki", vietnamese: "Thời tiết" },
+    { japanese: "きょう", hiragana: "kyou", vietnamese: "Hôm nay" },
+    { japanese: "きのう", hiragana: "kinou", vietnamese: "Hôm qua" },
+    { japanese: "あした", hiragana: "ashita", vietnamese: "Ngày mai" },
+    { japanese: "食べます", hiragana: "tabemasu", vietnamese: "ăn" },
+    { japanese: "飲みます", hiragana: "nomimasu", vietnamese: "uống" },
+    { japanese: "行きます", hiragana: "ikimasu", vietnamese: "đi" },
+    { japanese: "来ます", hiragana: "kimasu", vietnamese: "đến" },
+    { japanese: "買います", hiragana: "kaimasu", vietnamese: "mua" },
+    { japanese: "見ます", hiragana: "mimasu", vietnamese: "nhìn, xem" },
+    { japanese: "聞きます", hiragana: "kikimasu", vietnamese: "nghe" },
+    { japanese: "書きます", hiragana: "kakimasu", vietnamese: "viết" },
+    { japanese: "話します", hiragana: "hanashimasu", vietnamese: "nói chuyện" },
+    { japanese: "読みます", hiragana: "yomimasu", vietnamese: "đọc" },
+    { japanese: "ねます", hiragana: "nemasu", vietnamese: "ngủ" },
+    { japanese: "おきます", hiragana: "okimasu", vietnamese: "thức dậy" },
+    { japanese: "べんきょうします", hiragana: "benkyou shimasu", vietnamese: "học" },
+    { japanese: "しごと", hiragana: "shigoto", vietnamese: "công việc" },
+    { japanese: "がっこう", hiragana: "gakkou", vietnamese: "trường học" },
+    { japanese: "えき", hiragana: "eki", vietnamese: "nhà ga" },
+    { japanese: "びょういん", hiragana: "byouin", vietnamese: "bệnh viện" },
+    { japanese: "ぎんこう", hiragana: "ginkou", vietnamese: "ngân hàng" },
+    { japanese: "デパート", hiragana: "depāto", vietnamese: "trung tâm thương mại" },
+    { japanese: "レストラン", hiragana: "resutoran", vietnamese: "nhà hàng" },
+    { japanese: "としょかん", hiragana: "toshokan", vietnamese: "thư viện" },
+    { japanese: "くうこう", hiragana: "kuukou", vietnamese: "sân bay" },
+    { japanese: "うち", hiragana: "uchi", vietnamese: "nhà" },
+    { japanese: "まち", hiragana: "machi", vietnamese: "thành phố" },
+    { japanese: "かぞく", hiragana: "kazoku", vietnamese: "gia đình" },
+    { japanese: "ともだち", hiragana: "tomodachi", vietnamese: "bạn bè" },
+    { japanese: "きょうだい", hiragana: "kyoudai", vietnamese: "anh chị em" },
+    { japanese: "おとうさん", hiragana: "otousan", vietnamese: "bố" },
+    { japanese: "おかあさん", hiragana: "okaasan", vietnamese: "mẹ" },
+    { japanese: "こども", hiragana: "kodomo", vietnamese: "con cái" },
+  ]
+};
 
-        .romaji {
-            font-size: 1.2em;
-            color: #7f8c8d;
-            margin-bottom: 30px;
-        }
+const QuizState = {
+  NOT_STARTED: 'NOT_STARTED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  ANSWER_SELECTED: 'ANSWER_SELECTED',
+  FINISHED: 'FINISHED',
+};
 
-        .options-container {
-            display: grid;
-            gap: 15px;
-            grid-template-columns: 1fr;
-        }
+const App = () => {
+  // Firebase state
+  const [app, setApp] = useState(null);
+  const [auth, setAuth] = useState(null);
+  const [db, setDb] = useState(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState(null);
 
-        .option-button {
-            padding: 15px 25px;
-            font-size: 1.1em;
-            font-weight: 700;
-            color: #2c3e50;
-            background-color: #ecf0f1;
-            border: 2px solid #bdc3c7;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.1s ease;
-            text-align: left;
-        }
+  // App state
+  const [currentPage, setCurrentPage] = useState('login'); // 'login', 'home', 'add-course', 'quiz'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [courses, setCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
 
-        .option-button:hover {
-            background-color: #d8e1e7;
-        }
+  // Quiz state
+  const [quizState, setQuizState] = useState(QuizState.NOT_STARTED);
+  const [quizWords, setQuizWords] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [quizSummary, setQuizSummary] = useState({});
+  const [userAnswer, setUserAnswer] = useState(null);
+  const [isCorrect, setIsCorrect] = useState(null);
+  const [showHiragana, setShowHiragana] = useState(false);
 
-        .option-button:active {
-            transform: translateY(1px);
-        }
+  // Initialize Firebase and Auth listener
+  useEffect(() => {
+    try {
+      const firebaseApp = initializeApp(firebaseConfig);
+      const firebaseAuth = getAuth(firebaseApp);
+      const firestoreDb = getFirestore(firebaseApp);
 
-        .option-button.correct {
-            background-color: #27ae60;
-            color: white;
-            border-color: #2ecc71;
-        }
+      setApp(firebaseApp);
+      setAuth(firebaseAuth);
+      setDb(firestoreDb);
 
-        .option-button.incorrect {
-            background-color: #e74c3c;
-            color: white;
-            border-color: #c0392b;
+      onAuthStateChanged(firebaseAuth, async (user) => {
+        if (user) {
+          setIsLoggedIn(true);
+          setUserId(user.uid);
+          await checkAndAddDefaultCourse(user.uid, firestoreDb);
+          setCurrentPage('home');
+        } else {
+          setIsLoggedIn(false);
+          setUserId(null);
+          setCurrentPage('login');
         }
+        setIsAuthReady(true);
+      });
 
-        .result-message {
-            margin-top: 20px;
-            font-size: 1.2em;
-            font-weight: 700;
-            color: #3498db;
-            min-height: 1.5em;
-        }
+      if (initialAuthToken) {
+        signInWithCustomToken(firebaseAuth, initialAuthToken);
+      } else {
+        signInAnonymously(firebaseAuth);
+      }
+    } catch (error) {
+      console.error("Firebase initialization error:", error);
+      setErrorMessage("Lỗi khởi tạo Firebase. Vui lòng thử lại.");
+    }
+  }, []);
 
-        .navigation-panel {
-            margin-top: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            max-width: 600px;
-        }
+  // Fetch courses from Firestore
+  useEffect(() => {
+    if (!isAuthReady || !db || !userId) return;
 
-        .nav-button {
-            padding: 12px 25px;
-            font-size: 1em;
-            font-weight: 700;
-            color: white;
-            background-color: #3498db;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.1s ease;
-        }
+    const coursesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/courses`);
+    const q = query(coursesCollectionRef);
 
-        .nav-button:hover {
-            background-color: #2980b9;
-            transform: translateY(-2px);
-        }
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const coursesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setCourses(coursesData);
+    }, (error) => {
+      console.error("Lỗi lấy dữ liệu khóa học:", error);
+      setErrorMessage("Không thể tải khóa học. Vui lòng thử lại.");
+    });
 
-        .nav-button:active {
-            transform: translateY(0);
-        }
-        
-        .hidden {
-            display: none;
-        }
+    return () => unsubscribe();
+  }, [isAuthReady, db, userId]);
 
-        .counter {
-            font-size: 1em;
-            color: #7f8c8d;
-        }
+  // Handle Firebase Login/Signup
+  const handleAuth = async (isSignup) => {
+    setErrorMessage('');
+    // Simple email validation before attempting Firebase auth
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrorMessage("Vui lòng nhập một địa chỉ email hợp lệ.");
+      return;
+    }
 
-        /* Home Page specific styles */
-        .home-page .option-button {
-            display: block;
-            width: 100%;
-            text-align: center;
-            margin-bottom: 15px;
-        }
+    try {
+      if (isSignup) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (error) {
+      console.error("Lỗi xác thực:", error);
+      setErrorMessage("Đăng nhập/Đăng ký thất bại. Vui lòng kiểm tra lại email và mật khẩu.");
+    }
+  };
 
-        .home-page h1 {
-            font-size: 2.5em;
-        }
-        
-        .home-page p {
-            font-size: 1.2em;
-            margin-bottom: 25px;
-        }
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setCourses([]);
+      setSelectedCourse(null);
+      setCurrentPage('login');
+      // No need to reset userId and isLoggedIn as onAuthStateChanged will handle it
+    } catch (error) {
+      console.error("Lỗi đăng xuất:", error);
+      setErrorMessage("Đăng xuất thất bại. Vui lòng thử lại.");
+    }
+  };
 
-        /* Custom Quiz Input styles */
-        .custom-quiz-input-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .custom-quiz-input-container input {
-            flex-grow: 1;
-            padding: 10px;
-            border: 2px solid #bdc3c7;
-            border-radius: 8px;
-            font-size: 1em;
-            box-sizing: border-box;
-            text-align: center;
-        }
-        .custom-quiz-input-container .option-button {
-            width: auto; /* Reset width for flex container */
-        }
+  // Check and add default course
+  const checkAndAddDefaultCourse = async (uid, firestoreDb) => {
+    // Luôn ghi đè khóa học mặc định để đảm bảo nó luôn được cập nhật với dữ liệu mới nhất.
+    // Điều này sẽ giải quyết vấn đề khóa học không cập nhật khi có từ mới.
+    const defaultCourseDocRef = doc(firestoreDb, `artifacts/${appId}/users/${uid}/courses/default`);
+    await setDoc(defaultCourseDocRef, defaultCourse);
+  };
 
+  // Handle course file upload
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-        /* Add Word Page styles */
-        #add-word-page {
-            text-align: left;
-        }
-        #add-word-page input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 2px solid #bdc3c7;
-            border-radius: 8px;
-            font-size: 1em;
-            box-sizing: border-box;
-        }
-        #add-word-page label {
-            font-weight: 700;
-            margin-bottom: 5px;
-            display: block;
-        }
-        #add-word-page #add-button {
-            width: 100%;
-            background-color: #2ecc71;
-            color: white;
-        }
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const lines = text.split('\n').filter(line => line.trim() !== '');
+      const newWords = lines.map(line => {
+        const parts = line.split(',').map(part => part.trim());
+        return {
+          japanese: parts[0],
+          hiragana: parts[1],
+          vietnamese: parts[2]
+        };
+      });
 
-        .score-container {
-            margin-top: 10px;
-            text-align: right;
-            font-size: 1em;
-            font-weight: 700;
-        }
-        
-        .score-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #ecf0f1;
-        }
-        .score-item:last-child {
-            border-bottom: none;
-        }
+      if (newWords.some(word => !word.japanese || !word.hiragana || !word.vietnamese)) {
+        setErrorMessage("Định dạng tệp không đúng. Vui lòng sử dụng định dạng: từ tiếng Nhật, hiragana, nghĩa tiếng Việt.");
+        return;
+      }
 
+      const courseName = file.name.replace('.txt', '').replace('.csv', '').trim() || `Khóa học mới - ${Date.now()}`;
+      const newCourseData = {
+        name: courseName,
+        words: newWords
+      };
 
-        /* Responsive design */
-        @media (min-width: 600px) {
-            .options-container {
-                grid-template-columns: 1fr 1fr;
-            }
-            .home-page .options-container {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
+      try {
+        const coursesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/courses`);
+        await setDoc(doc(coursesCollectionRef, courseName.toLowerCase().replace(/\s/g, '-')), newCourseData);
+        setCurrentPage('home');
+        setErrorMessage('');
+      } catch (error) {
+        console.error("Lỗi thêm khóa học:", error);
+        setErrorMessage("Không thể thêm khóa học. Vui lòng thử lại.");
+      }
+    };
+    reader.readAsText(file);
+  };
 
-    <!-- Trang chủ -->
-    <div id="home-page" class="card-container home-page">
-        <h1>Chào mừng đến với web của Quyền</h1>
-        <p>Chọn số lượng từ bạn muốn học trong mỗi lần trắc nghiệm.</p>
-        <div class="options-container">
-            <button class="option-button" data-quiz-size="15">Học 15 từ</button>
-            <button class="option-button" data-quiz-size="20">Học 20 từ</button>
-            <div class="custom-quiz-input-container">
-                <input type="number" id="custom-quiz-input" placeholder="Số từ">
-                <button class="nav-button" id="start-custom-quiz">Bắt đầu</button>
+  // Start a new quiz
+  const startQuiz = (course) => {
+    if (!course || course.words.length < 5) {
+      setErrorMessage("Khóa học không đủ từ để tạo bài trắc nghiệm (tối thiểu 5 từ).");
+      return;
+    }
+
+    setSelectedCourse(course);
+    setQuizState(QuizState.IN_PROGRESS);
+    setScore(0);
+    setQuizSummary({});
+    setCurrentQuestionIndex(0);
+
+    // Randomly select 5 unique words
+    const selectedWords = [];
+    const tempWords = [...course.words];
+    while (selectedWords.length < 5 && tempWords.length > 0) {
+      const randomIndex = Math.floor(Math.random() * tempWords.length);
+      selectedWords.push(tempWords[randomIndex]);
+      tempWords.splice(randomIndex, 1);
+    }
+    
+    // Repeat each word 3 times and shuffle
+    const quizQuestions = selectedWords.flatMap(word => [word, word, word]);
+    // Shuffle the array using Fisher-Yates shuffle
+    for (let i = quizQuestions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [quizQuestions[i], quizQuestions[j]] = [quizQuestions[j], quizQuestions[i]];
+    }
+
+    setQuizWords(quizQuestions);
+    setErrorMessage('');
+    
+    // Initialize summary
+    const initialSummary = {};
+    selectedWords.forEach(word => {
+      initialSummary[word.japanese] = { correct: 0, total: 0 };
+    });
+    setQuizSummary(initialSummary);
+  };
+
+  // Handle user's answer
+  const handleAnswer = (answer) => {
+    if (quizState !== QuizState.IN_PROGRESS) return;
+
+    const currentWord = quizWords[currentQuestionIndex];
+    const isCorrectAnswer = (answer === currentWord.vietnamese);
+    setIsCorrect(isCorrectAnswer);
+    setShowHiragana(true);
+    setUserAnswer(answer);
+    setQuizState(QuizState.ANSWER_SELECTED);
+
+    setQuizSummary(prev => {
+      const newSummary = { ...prev };
+      newSummary[currentWord.japanese].total += 1;
+      if (isCorrectAnswer) {
+        newSummary[currentWord.japanese].correct += 1;
+        setScore(prevScore => prevScore + 1);
+      }
+      return newSummary;
+    });
+
+    if (isCorrectAnswer) {
+      setTimeout(() => {
+        nextQuestion();
+      }, 1000);
+    }
+  };
+
+  // Move to the next question
+  const nextQuestion = () => {
+    const nextIndex = currentQuestionIndex + 1;
+    if (nextIndex < quizWords.length) {
+      setCurrentQuestionIndex(nextIndex);
+      setQuizState(QuizState.IN_PROGRESS);
+      setIsCorrect(null);
+      setUserAnswer(null);
+      setShowHiragana(false);
+    } else {
+      setQuizState(QuizState.FINISHED);
+    }
+  };
+
+  // Generate answer options for the current question
+  const generateOptions = () => {
+    const currentWord = quizWords[currentQuestionIndex];
+    if (!currentWord) return [];
+
+    const otherWords = selectedCourse.words.filter(word => word.japanese !== currentWord.japanese);
+    const shuffledOthers = [...otherWords].sort(() => 0.5 - Math.random());
+    const incorrectOptions = shuffledOthers.slice(0, 3).map(word => word.vietnamese);
+    const options = [currentWord.vietnamese, ...incorrectOptions];
+
+    // Shuffle options
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+    return options;
+  };
+
+  const renderAuthPage = () => (
+    <div className="flex flex-col items-center justify-center p-6 bg-gray-50 min-h-screen">
+      <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
+        <h2 className="text-2xl font-bold text-center text-gray-800">Đăng nhập / Đăng ký</h2>
+        {errorMessage && <div className="text-sm text-red-500 text-center">{errorMessage}</div>}
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <input
+          type="password"
+          placeholder="Mật khẩu"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          onClick={() => handleAuth(false)}
+          className="w-full px-4 py-3 text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+        >
+          Đăng nhập
+        </button>
+        <button
+          onClick={() => handleAuth(true)}
+          className="w-full px-4 py-3 text-white bg-green-600 rounded-lg shadow-md hover:bg-green-700 transition-colors"
+        >
+          Đăng ký
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderHomePage = () => (
+    <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
+      <div className="w-full max-w-2xl p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-800">Khóa học của tôi</h2>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg shadow-md hover:bg-red-700 transition-colors"
+          >
+            Đăng xuất
+          </button>
+        </div>
+        <p className="text-gray-600">ID Người dùng: {userId}</p>
+        {errorMessage && <div className="text-sm text-red-500">{errorMessage}</div>}
+        <div className="space-y-4">
+          {courses.length > 0 ? (
+            courses.map(course => (
+              <div
+                key={course.id}
+                className="flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm"
+              >
+                <span className="text-lg font-medium text-gray-700">{course.name}</span>
+                {/* Conditionally render the button based on the number of words */}
+                {course.words && course.words.length >= 5 ? (
+                  <button
+                    onClick={() => startQuiz(course)}
+                    className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                  >
+                    Bắt đầu trắc nghiệm
+                  </button>
+                ) : (
+                  <span className="text-sm text-red-500">Không đủ từ ({course.words.length} / 5)</span>
+                )}
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500">Bạn chưa có khóa học nào.</p>
+          )}
+        </div>
+        <button
+          onClick={() => setCurrentPage('add-course')}
+          className="w-full px-4 py-3 text-white bg-purple-600 rounded-lg shadow-md hover:bg-purple-700 transition-colors mt-6"
+        >
+          Thêm khóa học mới
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderAddCoursePage = () => (
+    <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
+        <h2 className="text-2xl font-bold text-center text-gray-800">Thêm Khóa học</h2>
+        <p className="text-sm text-gray-600 text-center">Tải lên tệp .txt hoặc .csv với định dạng: <br /> <code className="bg-gray-200 p-1 rounded">từ tiếng Nhật, hiragana, nghĩa tiếng Việt</code></p>
+        {errorMessage && <div className="text-sm text-red-500 text-center">{errorMessage}</div>}
+        <input
+          type="file"
+          accept=".txt,.csv" // Updated to accept both .txt and .csv
+          onChange={handleFileUpload}
+          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+        />
+        <button
+          onClick={() => setCurrentPage('home')}
+          className="w-full px-4 py-3 text-white bg-gray-600 rounded-lg shadow-md hover:bg-gray-700 transition-colors"
+        >
+          Trở về Trang chủ
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderQuizPage = () => {
+    if (quizState === QuizState.FINISHED) {
+      return (
+        <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
+          <div className="w-full max-w-xl p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
+            <h2 className="text-2xl font-bold text-center text-gray-800">Kết thúc bài trắc nghiệm</h2>
+            <p className="text-center text-xl font-semibold text-gray-700">Điểm của bạn: {score}/{quizWords.length}</p>
+            <h3 className="text-xl font-semibold text-gray-800">Tóm tắt kết quả:</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Từ vựng</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lần trả lời đúng</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {Object.entries(quizSummary).map(([word, summary]) => (
+                    <tr key={word}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{word}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{summary.correct} / {summary.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <button class="option-button" id="add-word-option">Thêm từ mới</button>
+            <button
+              onClick={() => setCurrentPage('home')}
+              className="w-full px-4 py-3 text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+            >
+              Trở về Trang chủ
+            </button>
+          </div>
         </div>
-    </div>
+      );
+    }
 
-    <!-- Trang thêm từ mới -->
-    <div id="add-word-page" class="card-container hidden">
-        <h2>Thêm từ vựng mới</h2>
-        <label for="japanese-input">Từ tiếng Nhật:</label>
-        <input type="text" id="japanese-input" placeholder="Nhập từ tiếng Nhật (ví dụ: こんにちは)">
-        <label for="romaji-input">Romaji:</label>
-        <input type="text" id="romaji-input" placeholder="Nhập romaji (ví dụ: konnichiwa)">
-        <label for="vietnamese-input">Nghĩa tiếng Việt:</label>
-        <input type="text" id="vietnamese-input" placeholder="Nhập nghĩa tiếng Việt (ví dụ: Xin chào)">
-        <button class="nav-button" id="add-button">Thêm từ</button>
-        <div id="add-message" style="margin-top: 15px; color: #2ecc71;"></div>
-    </div>
+    const currentWord = quizWords[currentQuestionIndex];
+    if (!currentWord) return null;
 
-    <!-- Trang trắc nghiệm -->
-    <div id="quiz-page" class="card-container hidden">
-        <h1 class="japanese-word" id="japanese-word"></h1>
-        <p class="romaji" id="romaji"></p>
-        
-        <div class="options-container" id="options-container">
-            <!-- Buttons will be generated by JavaScript -->
+    const options = generateOptions();
+
+    return (
+      <div className="flex flex-col items-center justify-center p-6 bg-gray-50 min-h-screen">
+        <div className="w-full max-w-xl p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">{currentWord.japanese}</h2>
+            {showHiragana && <p className="text-xl text-gray-600 mb-4">{currentWord.hiragana}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {options.map((option, index) => (
+              <button
+                key={index}
+                onClick={() => handleAnswer(option)}
+                disabled={quizState === QuizState.ANSWER_SELECTED}
+                className={`w-full px-4 py-3 text-lg rounded-lg shadow-md transition-all
+                  ${quizState === QuizState.ANSWER_SELECTED
+                    ? (option === currentWord.vietnamese
+                      ? 'bg-green-500 text-white'
+                      : (option === userAnswer ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-800 cursor-not-allowed'))
+                    : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                  }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+
+          {quizState === QuizState.ANSWER_SELECTED && (
+            <div className="flex flex-col items-center mt-6">
+              <p className={`text-xl font-bold mb-4 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                {isCorrect ? 'Chính xác!' : 'Sai rồi!'}
+              </p>
+              {!isCorrect && (
+                <button
+                  onClick={nextQuestion}
+                  className="px-6 py-3 text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                >
+                  Tiếp theo
+                </button>
+              )}
+            </div>
+          )}
+          <div className="text-center text-sm text-gray-500 mt-4">
+            Câu hỏi: {currentQuestionIndex + 1} / {quizWords.length}
+          </div>
         </div>
+      </div>
+    );
+  };
 
-        <p class="result-message" id="result-message"></p>
-        
-        <div id="word-scores-breakdown" class="hidden">
-            <h3>Chi tiết điểm số:</h3>
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'login':
+        return renderAuthPage();
+      case 'home':
+        return renderHomePage();
+      case 'add-course':
+        return renderAddCoursePage();
+      case 'quiz':
+        return renderQuizPage();
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="font-sans text-gray-900 antialiased min-h-screen">
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+          body { font-family: 'Inter', sans-serif; }
+        `}
+      </style>
+      {!isAuthReady ? (
+        <div className="flex items-center justify-center min-h-screen bg-gray-100 text-gray-600">
+          Đang tải...
         </div>
+      ) : (
+        renderPage()
+      )}
     </div>
+  );
+};
 
-    <div id="quiz-navigation" class="navigation-panel hidden">
-        <button id="back-button" class="nav-button">Trang chủ</button>
-        <div style="text-align: center;">
-            <span class="counter" id="counter"></span>
-            <div class="score-container">Tổng điểm: <span id="score-display">0</span></div>
-        </div>
-        <button id="next-button" class="nav-button hidden">Tiếp theo</button>
-    </div>
-
-    <script>
-        // Danh sách 50 từ tiếng Nhật ban đầu
-        const initialVocabulary = [
-            { japanese: 'こんにちは', romaji: 'konnichiwa', vietnamese: 'Xin chào' },
-            { japanese: 'ありがとう', romaji: 'arigatou', vietnamese: 'Cảm ơn' },
-            { japanese: 'すみません', romaji: 'sumimasen', vietnamese: 'Xin lỗi / Xin phép' },
-            { japanese: 'はい', romaji: 'hai', vietnamese: 'Vâng / Có' },
-            { japanese: 'いいえ', romaji: 'iie', vietnamese: 'Không' },
-            { japanese: 'おはようございます', romaji: 'ohayou gozaimasu', vietnamese: 'Chào buổi sáng' },
-            { japanese: 'こんばんは', romaji: 'konbanwa', vietnamese: 'Chào buổi tối' },
-            { japanese: 'おやすみなさい', romaji: 'oyasuminasai', vietnamese: 'Chúc ngủ ngon' },
-            { japanese: 'さようなら', romaji: 'sayounara', vietnamese: 'Tạm biệt' },
-            { japanese: 'はじめまして', romaji: 'hajimemashite', vietnamese: 'Rất vui được gặp bạn' },
-            { japanese: 'おねがいします', romaji: 'onegaishimasu', vietnamese: 'Làm ơn / Xin vui lòng' },
-            { japanese: 'いただきます', romaji: 'itadakimasu', vietnamese: 'Mời ăn cơm' },
-            { japanese: 'ごちそうさま', romaji: 'gochisousama', vietnamese: 'Cảm ơn vì bữa ăn' },
-            { japanese: 'おいしい', romaji: 'oishii', vietnamese: 'Ngon' },
-            { japanese: 'かわいい', romaji: 'kawaii', vietnamese: 'Dễ thương' },
-            { japanese: 'すごい', romaji: 'sugoi', vietnamese: 'Tuyệt vời / Kinh ngạc' },
-            { japanese: 'がんばって', romaji: 'ganbatte', vietnamese: 'Cố lên' },
-            { japanese: 'おげんきですか', romaji: 'ogenki desu ka', vietnamese: 'Bạn có khỏe không?' },
-            { japanese: 'わたし', romaji: 'watashi', vietnamese: 'Tôi' },
-            { japanese: 'あなた', romaji: 'anata', vietnamese: 'Bạn' },
-            { japanese: 'これ', romaji: 'kore', vietnamese: 'Cái này' },
-            { japanese: 'それ', romaji: 'sore', vietnamese: 'Cái đó' },
-            { japanese: 'あれ', romaji: 'are', vietnamese: 'Cái kia' },
-            { japanese: 'どこ', romaji: 'doko', vietnamese: 'Ở đâu' },
-            { japanese: 'いつ', romaji: 'itsu', vietnamese: 'Khi nào' },
-            { japanese: 'いくら', romaji: 'ikura', vietnamese: 'Bao nhiêu tiền' },
-            { japanese: 'なん', romaji: 'nan', vietnamese: 'Cái gì' },
-            { japanese: 'だれ', romaji: 'dare', vietnamese: 'Ai' },
-            { japanese: 'どうして', romaji: 'doushite', vietnamese: 'Tại sao' },
-            { japanese: 'どうも', romaji: 'doumo', vietnamese: 'Cảm ơn / Chào' },
-            { japanese: 'どうぞ', romaji: 'douzo', vietnamese: 'Xin mời' },
-            { japanese: 'おはよう', romaji: 'ohayou', vietnamese: 'Chào buổi sáng (thân mật)' },
-            { japanese: 'げんき', romaji: 'genki', vietnamese: 'Khỏe' },
-            { japanese: 'しごと', romaji: 'shigoto', vietnamese: 'Công việc' },
-            { japanese: 'がっこう', romaji: 'gakkou', vietnamese: 'Trường học' },
-            { japanese: 'おみやげ', romaji: 'omiyage', vietnamese: 'Quà lưu niệm' },
-            { japanese: 'おかし', romaji: 'okashi', vietnamese: 'Kẹo, bánh' },
-            { japanese: 'おさけ', romaji: 'osake', vietnamese: 'Rượu sake' },
-            { japanese: 'ごはん', romaji: 'gohan', vietnamese: 'Cơm' },
-            { japanese: 'みず', romaji: 'mizu', vietnamese: 'Nước' },
-            { japanese: 'おちゃ', romaji: 'ocha', vietnamese: 'Trà' },
-            { japanese: 'にほんご', romaji: 'nihongo', vietnamese: 'Tiếng Nhật' },
-            { japanese: 'えいご', romaji: 'eigo', vietnamese: 'Tiếng Anh' },
-            { japanese: 'わたしは', romaji: 'watashi wa', vietnamese: 'Tôi là...' },
-            { japanese: '〜です', romaji: 'desu', vietnamese: 'Là (trợ động từ)' },
-            { japanese: 'はい、そうです', romaji: 'hai, sou desu', vietnamese: 'Vâng, đúng vậy' },
-            { japanese: 'いいえ、ちがいます', romaji: 'iie, chigaimasu', vietnamese: 'Không, không phải' },
-            { japanese: 'おつかれさま', romaji: 'otsukaresama', vietnamese: 'Bạn vất vả rồi' },
-            { japanese: 'どうぞよろしく', romaji: 'douzo yoroshiku', vietnamese: 'Rất mong được giúp đỡ' },
-            { japanese: 'いってきます', romaji: 'ittekimasu', vietnamese: 'Tôi đi đây (sẽ quay lại)' }
-        ];
-
-        let vocabulary = [...initialVocabulary];
-        let availableWords = [];
-        let totalWordsForQuiz = 0;
-        let totalScore = 0;
-        let wordScores = {}; // Lưu điểm cho mỗi từ
-        let currentWord = null;
-        
-        // Load vocabulary from local storage
-        function loadCustomVocabulary() {
-            const customWords = JSON.parse(localStorage.getItem('customVocabulary')) || [];
-            vocabulary = [...initialVocabulary, ...customWords];
-        }
-
-        // Save vocabulary to local storage
-        function saveCustomVocabulary(newWord) {
-            const customWords = JSON.parse(localStorage.getItem('customVocabulary')) || [];
-            customWords.push(newWord);
-            localStorage.setItem('customVocabulary', JSON.stringify(customWords));
-            loadCustomVocabulary(); // Reload all words
-        }
-        
-        // Save scores to local storage
-        function saveScores() {
-            localStorage.setItem('totalScore', JSON.stringify(totalScore));
-            localStorage.setItem('wordScores', JSON.stringify(wordScores));
-        }
-
-        // Load scores from local storage
-        function loadScores() {
-            totalScore = JSON.parse(localStorage.getItem('totalScore')) || 0;
-            wordScores = JSON.parse(localStorage.getItem('wordScores')) || {};
-            scoreDisplay.textContent = totalScore;
-        }
-
-        // Các phần tử DOM
-        const homePage = document.getElementById('home-page');
-        const quizPage = document.getElementById('quiz-page');
-        const quizNavigation = document.getElementById('quiz-navigation');
-        const addWordPage = document.getElementById('add-word-page');
-        const fixedSizeQuizButtons = document.querySelectorAll('#home-page .option-button[data-quiz-size]');
-        const addWordOptionButton = document.getElementById('add-word-option');
-        const startCustomQuizButton = document.getElementById('start-custom-quiz');
-        const customQuizInput = document.getElementById('custom-quiz-input');
-        const backButton = document.getElementById('back-button');
-        const japaneseWordEl = document.getElementById('japanese-word');
-        const romajiEl = document.getElementById('romaji');
-        const optionsContainer = document.getElementById('options-container');
-        const nextButton = document.getElementById('next-button');
-        const counterEl = document.getElementById('counter');
-        const resultMessageEl = document.getElementById('result-message');
-        const scoreDisplay = document.getElementById('score-display');
-        const wordScoresBreakdown = document.getElementById('word-scores-breakdown');
-        
-        const japaneseInput = document.getElementById('japanese-input');
-        const romajiInput = document.getElementById('romaji-input');
-        const vietnameseInput = document.getElementById('vietnamese-input');
-        const addButton = document.getElementById('add-button');
-        const addMessage = document.getElementById('add-message');
-        
-        // Hàm xáo trộn mảng
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-        }
-
-        // Hàm kết thúc bài trắc nghiệm
-        function endQuiz() {
-            japaneseWordEl.textContent = 'Hoàn thành!';
-            romajiEl.textContent = `Bạn đã hoàn thành bài kiểm tra với tổng điểm: ${totalScore}`;
-            optionsContainer.innerHTML = '';
-            resultMessageEl.textContent = 'Chúc mừng bạn đã hoàn thành tất cả các câu hỏi! 🎉';
-            nextButton.classList.add('hidden');
-            counterEl.textContent = '';
-            
-            // Hiển thị chi tiết điểm số của từng từ
-            wordScoresBreakdown.classList.remove('hidden');
-            let scoresHtml = '<h3>Chi tiết điểm số:</h3>';
-            const learnedWords = Object.keys(wordScores);
-            if (learnedWords.length > 0) {
-                learnedWords.forEach(word => {
-                    // Find the total occurrences of this word in the quiz
-                    const totalOccurrences = availableWords.filter(w => w.japanese === word).length;
-                    scoresHtml += `<div class="score-item"><span>${word}</span> <span>${wordScores[word]} / ${totalOccurrences}</span></div>`;
-                });
-            } else {
-                scoresHtml += '<p>Chưa có từ nào được trả lời đúng.</p>';
-            }
-            wordScoresBreakdown.innerHTML = scoresHtml;
-            
-            saveScores(); // Lưu điểm số khi kết thúc quiz
-        }
-
-        // Tạo câu hỏi và các đáp án
-        function generateQuestion() {
-            wordScoresBreakdown.classList.add('hidden');
-            
-            // Check if all words have been used
-            if (availableWords.length === 0) {
-                endQuiz();
-                return;
-            }
-
-            let nextWordIndex = Math.floor(Math.random() * availableWords.length);
-            let nextWord = availableWords[nextWordIndex];
-            
-            // Đảm bảo từ mới không lặp lại từ vừa rồi
-            if (currentWord && availableWords.length > 1) {
-                while (nextWord.japanese === currentWord.japanese) {
-                    nextWordIndex = Math.floor(Math.random() * availableWords.length);
-                    nextWord = availableWords[nextWordIndex];
-                }
-            }
-
-            currentWord = nextWord;
-            availableWords.splice(nextWordIndex, 1);
-            
-            const correctAnswer = currentWord.vietnamese;
-
-            const incorrectAnswers = [];
-            const tempVocabulary = [...vocabulary].filter(word => word.japanese !== currentWord.japanese);
-            shuffleArray(tempVocabulary);
-            for (let i = 0; i < 3 && i < tempVocabulary.length; i++) {
-                incorrectAnswers.push(tempVocabulary[i].vietnamese);
-            }
-
-            const allAnswers = [...incorrectAnswers, correctAnswer];
-            shuffleArray(allAnswers);
-
-            japaneseWordEl.textContent = currentWord.japanese;
-            romajiEl.textContent = currentWord.romaji;
-            optionsContainer.innerHTML = '';
-            resultMessageEl.textContent = '';
-            nextButton.classList.add('hidden');
-
-            allAnswers.forEach(answer => {
-                const button = document.createElement('button');
-                button.textContent = answer;
-                button.classList.add('option-button');
-                button.addEventListener('click', () => checkAnswer(button, answer, correctAnswer));
-                optionsContainer.appendChild(button);
-            });
-            
-            // Update counter
-            counterEl.textContent = `${totalWordsForQuiz - availableWords.length}/${totalWordsForQuiz}`;
-        }
-
-        // Kiểm tra đáp án
-        function checkAnswer(button, selectedAnswer, correctAnswer) {
-            const allButtons = document.querySelectorAll('.option-button');
-            allButtons.forEach(btn => btn.disabled = true);
-
-            if (selectedAnswer === correctAnswer) {
-                button.classList.add('correct');
-                resultMessageEl.textContent = 'Đúng rồi!';
-                totalScore++;
-                scoreDisplay.textContent = totalScore;
-                
-                // Ghi điểm cho từ cụ thể
-                wordScores[currentWord.japanese] = (wordScores[currentWord.japanese] || 0) + 1;
-                
-                saveScores(); // Lưu điểm số ngay sau khi trả lời đúng
-                
-                setTimeout(generateQuestion, 1000);
-            } else {
-                button.classList.add('incorrect');
-                resultMessageEl.textContent = `Sai rồi. Đáp án đúng là: ${correctAnswer}`;
-                const correctButton = Array.from(allButtons).find(btn => btn.textContent === correctAnswer);
-                if (correctButton) {
-                    correctButton.classList.add('correct');
-                }
-                nextButton.classList.remove('hidden');
-            }
-        }
-
-        // Chuyển đổi giữa các trang
-        function showHomePage() {
-            homePage.classList.remove('hidden');
-            quizPage.classList.add('hidden');
-            quizNavigation.classList.add('hidden');
-            addWordPage.classList.add('hidden');
-        }
-
-        function showQuizPage() {
-            homePage.classList.add('hidden');
-            quizPage.classList.remove('hidden');
-            quizNavigation.classList.remove('hidden');
-            addWordPage.classList.add('hidden');
-        }
-
-        function showAddWordPage() {
-            homePage.classList.add('hidden');
-            quizPage.classList.add('hidden');
-            quizNavigation.classList.remove('hidden');
-            addWordPage.classList.remove('hidden');
-            backButton.classList.remove('hidden'); // Ensure back button is visible
-            nextButton.classList.add('hidden'); // Hide next button on this page
-        }
-
-        // Khởi tạo một bài quiz mới
-        function startQuiz(quizSize) {
-            totalWordsForQuiz = quizSize * 4; // Mỗi từ lặp lại 4 lần
-            
-            shuffleArray(vocabulary);
-            const selectedWords = vocabulary.slice(0, quizSize);
-            
-            availableWords = [];
-            // Thêm mỗi từ vào mảng 4 lần
-            for (let i = 0; i < 4; i++) {
-                availableWords.push(...selectedWords);
-            }
-            shuffleArray(availableWords);
-            
-            showQuizPage();
-            generateQuestion();
-        }
-
-        // Sự kiện khi nhấn nút trên trang chủ
-        fixedSizeQuizButtons.forEach(button => {
-            button.addEventListener('click', (event) => {
-                const quizSize = parseInt(event.target.dataset.quizSize);
-                if (!isNaN(quizSize)) {
-                    startQuiz(quizSize);
-                }
-            });
-        });
-
-        // Sự kiện khi nhấn nút "Bắt đầu" cho quiz tùy chỉnh
-        startCustomQuizButton.addEventListener('click', () => {
-            const quizSize = parseInt(customQuizInput.value.trim());
-
-            if (isNaN(quizSize) || quizSize <= 0 || quizSize > vocabulary.length) {
-                resultMessageEl.textContent = `Vui lòng nhập một số hợp lệ từ 1 đến ${vocabulary.length}.`;
-                resultMessageEl.style.color = '#e74c3c';
-                setTimeout(() => resultMessageEl.textContent = '', 3000);
-                return;
-            }
-            startQuiz(quizSize);
-        });
-        
-        // Sự kiện khi nhấn nút "Thêm từ mới"
-        addWordOptionButton.addEventListener('click', showAddWordPage);
-
-        // Sự kiện khi nhấn nút "Thêm từ"
-        addButton.addEventListener('click', () => {
-            const japanese = japaneseInput.value.trim();
-            const romaji = romajiInput.value.trim();
-            const vietnamese = vietnameseInput.value.trim();
-
-            if (japanese && romaji && vietnamese) {
-                const newWord = { japanese, romaji, vietnamese };
-                saveCustomVocabulary(newWord);
-                addMessage.textContent = 'Đã thêm từ thành công!';
-                japaneseInput.value = '';
-                romajiInput.value = '';
-                vietnameseInput.value = '';
-                
-                // Clear message after a few seconds
-                setTimeout(() => {
-                    addMessage.textContent = '';
-                }, 3000);
-            } else {
-                addMessage.textContent = 'Vui lòng nhập đủ các trường.';
-                addMessage.style.color = '#e74c3c';
-            }
-        });
-
-        // Sự kiện khi nhấn nút "Tiếp theo"
-        nextButton.addEventListener('click', generateQuestion);
-
-        // Sự kiện khi nhấn nút "Trang chủ"
-        backButton.addEventListener('click', () => {
-            availableWords = [];
-            totalWordsForQuiz = 0;
-            currentWord = null;
-            showHomePage();
-            resultMessageEl.textContent = ''; // Clear result message when going back to home
-        });
-        
-        // Load custom vocabulary and scores initially
-        document.addEventListener('DOMContentLoaded', () => {
-            loadCustomVocabulary();
-            loadScores();
-            showHomePage();
-        });
-    </script>
-
-</body>
-</html>
+export default App;
