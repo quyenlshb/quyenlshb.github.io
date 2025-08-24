@@ -3,34 +3,371 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello, World!</title>
+    <title>Trắc nghiệm từ vựng tiếng Nhật</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
-            color: #333;
-        }
-        .container {
-            text-align: center;
+            background-color: #f0f4f8;
+            color: #2c3e50;
+            flex-direction: column;
             padding: 20px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
-        h1 {
+
+        .card-container {
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            padding: 30px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .japanese-word {
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #34495e;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .romaji {
+            font-size: 1.2em;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .options-container {
+            display: grid;
+            gap: 15px;
+            grid-template-columns: 1fr;
+        }
+
+        .option-button {
+            padding: 15px 25px;
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #2c3e50;
+            background-color: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            text-align: left;
+        }
+
+        .option-button:hover {
+            background-color: #d8e1e7;
+        }
+
+        .option-button:active {
+            transform: translateY(1px);
+        }
+
+        .option-button.correct {
+            background-color: #27ae60;
+            color: white;
+            border-color: #2ecc71;
+        }
+
+        .option-button.incorrect {
+            background-color: #e74c3c;
+            color: white;
+            border-color: #c0392b;
+        }
+
+        .result-message {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #3498db;
+            min-height: 1.5em;
+        }
+
+        .navigation-panel {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .nav-button {
+            padding: 12px 25px;
+            font-size: 1em;
+            font-weight: 700;
+            color: white;
+            background-color: #3498db;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+        .nav-button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .nav-button:active {
+            transform: translateY(0);
+        }
+        
+        .hidden {
+            display: none;
+        }
+
+        .counter {
+            font-size: 1em;
+            color: #7f8c8d;
+        }
+
+        /* Home Page specific styles */
+        .home-page .option-button {
+            display: block;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .home-page h1 {
             font-size: 2.5em;
-            color: #555;
+        }
+        
+        .home-page p {
+            font-size: 1.2em;
+            margin-bottom: 25px;
+        }
+
+        /* Responsive design */
+        @media (min-width: 600px) {
+            .options-container {
+                grid-template-columns: 1fr 1fr;
+            }
+            .home-page .options-container {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Hello, World!</h1>
+
+    <!-- Trang chủ -->
+    <div id="home-page" class="card-container home-page">
+        <h1>Học từ vựng tiếng Nhật</h1>
+        <p>Chọn số lượng từ bạn muốn học trong mỗi lần trắc nghiệm.</p>
+        <div class="options-container">
+            <button class="option-button" data-quiz-size="15">Học 15 từ</button>
+            <button class="option-button" data-quiz-size="20">Học 20 từ</button>
+            <button class="option-button" data-quiz-size="50">Học 50 từ (Toàn bộ)</button>
+        </div>
     </div>
+
+    <!-- Trang trắc nghiệm -->
+    <div id="quiz-page" class="card-container hidden">
+        <h1 class="japanese-word" id="japanese-word"></h1>
+        <p class="romaji" id="romaji"></p>
+        
+        <div class="options-container" id="options-container">
+            <!-- Buttons will be generated by JavaScript -->
+        </div>
+
+        <p class="result-message" id="result-message"></p>
+    </div>
+
+    <div id="quiz-navigation" class="navigation-panel hidden">
+        <button id="back-button" class="nav-button">Trang chủ</button>
+        <span class="counter" id="counter"></span>
+        <button id="next-button" class="nav-button hidden">Tiếp theo</button>
+    </div>
+
+    <script>
+        // Danh sách 50 từ tiếng Nhật thông dụng
+        const vocabulary = [
+            { japanese: 'こんにちは', romaji: 'konnichiwa', vietnamese: 'Xin chào' },
+            { japanese: 'ありがとう', romaji: 'arigatou', vietnamese: 'Cảm ơn' },
+            { japanese: 'すみません', romaji: 'sumimasen', vietnamese: 'Xin lỗi / Xin phép' },
+            { japanese: 'はい', romaji: 'hai', vietnamese: 'Vâng / Có' },
+            { japanese: 'いいえ', romaji: 'iie', vietnamese: 'Không' },
+            { japanese: 'おはようございます', romaji: 'ohayou gozaimasu', vietnamese: 'Chào buổi sáng' },
+            { japanese: 'こんばんは', romaji: 'konbanwa', vietnamese: 'Chào buổi tối' },
+            { japanese: 'おやすみなさい', romaji: 'oyasuminasai', vietnamese: 'Chúc ngủ ngon' },
+            { japanese: 'さようなら', romaji: 'sayounara', vietnamese: 'Tạm biệt' },
+            { japanese: 'はじめまして', romaji: 'hajimemashite', vietnamese: 'Rất vui được gặp bạn' },
+            { japanese: 'おねがいします', romaji: 'onegaishimasu', vietnamese: 'Làm ơn / Xin vui lòng' },
+            { japanese: 'いただきます', romaji: 'itadakimasu', vietnamese: 'Mời ăn cơm' },
+            { japanese: 'ごちそうさま', romaji: 'gochisousama', vietnamese: 'Cảm ơn vì bữa ăn' },
+            { japanese: 'おいしい', romaji: 'oishii', vietnamese: 'Ngon' },
+            { japanese: 'かわいい', romaji: 'kawaii', vietnamese: 'Dễ thương' },
+            { japanese: 'すごい', romaji: 'sugoi', vietnamese: 'Tuyệt vời / Kinh ngạc' },
+            { japanese: 'がんばって', romaji: 'ganbatte', vietnamese: 'Cố lên' },
+            { japanese: 'おげんきですか', romaji: 'ogenki desu ka', vietnamese: 'Bạn có khỏe không?' },
+            { japanese: 'わたし', romaji: 'watashi', vietnamese: 'Tôi' },
+            { japanese: 'あなた', romaji: 'anata', vietnamese: 'Bạn' },
+            { japanese: 'これ', romaji: 'kore', vietnamese: 'Cái này' },
+            { japanese: 'それ', romaji: 'sore', vietnamese: 'Cái đó' },
+            { japanese: 'あれ', romaji: 'are', vietnamese: 'Cái kia' },
+            { japanese: 'どこ', romaji: 'doko', vietnamese: 'Ở đâu' },
+            { japanese: 'いつ', romaji: 'itsu', vietnamese: 'Khi nào' },
+            { japanese: 'いくら', romaji: 'ikura', vietnamese: 'Bao nhiêu tiền' },
+            { japanese: 'なん', romaji: 'nan', vietnamese: 'Cái gì' },
+            { japanese: 'だれ', romaji: 'dare', vietnamese: 'Ai' },
+            { japanese: 'どうして', romaji: 'doushite', vietnamese: 'Tại sao' },
+            { japanese: 'どうも', romaji: 'doumo', vietnamese: 'Cảm ơn / Chào' },
+            { japanese: 'どうぞ', romaji: 'douzo', vietnamese: 'Xin mời' },
+            { japanese: 'おはよう', romaji: 'ohayou', vietnamese: 'Chào buổi sáng (thân mật)' },
+            { japanese: 'げんき', romaji: 'genki', vietnamese: 'Khỏe' },
+            { japanese: 'しごと', romaji: 'shigoto', vietnamese: 'Công việc' },
+            { japanese: 'がっこう', romaji: 'gakkou', vietnamese: 'Trường học' },
+            { japanese: 'おみやげ', romaji: 'omiyage', vietnamese: 'Quà lưu niệm' },
+            { japanese: 'おかし', romaji: 'okashi', vietnamese: 'Kẹo, bánh' },
+            { japanese: 'おさけ', romaji: 'osake', vietnamese: 'Rượu sake' },
+            { japanese: 'ごはん', romaji: 'gohan', vietnamese: 'Cơm' },
+            { japanese: 'みず', romaji: 'mizu', vietnamese: 'Nước' },
+            { japanese: 'おちゃ', romaji: 'ocha', vietnamese: 'Trà' },
+            { japanese: 'にほんご', romaji: 'nihongo', vietnamese: 'Tiếng Nhật' },
+            { japanese: 'えいご', romaji: 'eigo', vietnamese: 'Tiếng Anh' },
+            { japanese: 'わたしは', romaji: 'watashi wa', vietnamese: 'Tôi là...' },
+            { japanese: '〜です', romaji: 'desu', vietnamese: 'Là (trợ động từ)' },
+            { japanese: 'はい、そうです', romaji: 'hai, sou desu', vietnamese: 'Vâng, đúng vậy' },
+            { japanese: 'いいえ、ちがいます', romaji: 'iie, chigaimasu', vietnamese: 'Không, không phải' },
+            { japanese: 'おつかれさま', romaji: 'otsukaresama', vietnamese: 'Bạn vất vả rồi' },
+            { japanese: 'どうぞよろしく', romaji: 'douzo yoroshiku', vietnamese: 'Rất mong được giúp đỡ' },
+            { japanese: 'いってきます', romaji: 'ittekimasu', vietnamese: 'Tôi đi đây (sẽ quay lại)' }
+        ];
+
+        let availableWords = [];
+        let totalWordsForQuiz = 0;
+
+        // Các phần tử DOM
+        const homePage = document.getElementById('home-page');
+        const quizPage = document.getElementById('quiz-page');
+        const quizNavigation = document.getElementById('quiz-navigation');
+        const homeButtons = document.querySelectorAll('#home-page .option-button');
+        const backButton = document.getElementById('back-button');
+        const japaneseWordEl = document.getElementById('japanese-word');
+        const romajiEl = document.getElementById('romaji');
+        const optionsContainer = document.getElementById('options-container');
+        const nextButton = document.getElementById('next-button');
+        const counterEl = document.getElementById('counter');
+        const resultMessageEl = document.getElementById('result-message');
+        
+        // Hàm xáo trộn mảng
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Tạo câu hỏi và các đáp án
+        function generateQuestion() {
+            if (availableWords.length === 0) {
+                showHomePage();
+                japaneseWordEl.textContent = 'Hoàn thành!';
+                romajiEl.textContent = '';
+                optionsContainer.innerHTML = '';
+                resultMessageEl.textContent = `Bạn đã hoàn thành ${totalWordsForQuiz} từ. Chúc mừng!`;
+                return;
+            }
+
+            const currentWord = availableWords.pop();
+            const correctAnswer = currentWord.vietnamese;
+
+            const incorrectAnswers = [];
+            const tempVocabulary = [...vocabulary].filter(word => word.vietnamese !== correctAnswer);
+            shuffleArray(tempVocabulary);
+            for (let i = 0; i < 3 && i < tempVocabulary.length; i++) {
+                incorrectAnswers.push(tempVocabulary[i].vietnamese);
+            }
+
+            const allAnswers = [...incorrectAnswers, correctAnswer];
+            shuffleArray(allAnswers);
+
+            japaneseWordEl.textContent = currentWord.japanese;
+            romajiEl.textContent = currentWord.romaji;
+            optionsContainer.innerHTML = '';
+            resultMessageEl.textContent = '';
+            nextButton.classList.add('hidden');
+
+            allAnswers.forEach(answer => {
+                const button = document.createElement('button');
+                button.textContent = answer;
+                button.classList.add('option-button');
+                button.addEventListener('click', () => checkAnswer(button, answer, correctAnswer));
+                optionsContainer.appendChild(button);
+            });
+            
+            counterEl.textContent = `${totalWordsForQuiz - availableWords.length}/${totalWordsForQuiz}`;
+        }
+
+        // Kiểm tra đáp án
+        function checkAnswer(button, selectedAnswer, correctAnswer) {
+            const allButtons = document.querySelectorAll('.option-button');
+            allButtons.forEach(btn => btn.disabled = true);
+
+            if (selectedAnswer === correctAnswer) {
+                button.classList.add('correct');
+                resultMessageEl.textContent = 'Đúng rồi!';
+                setTimeout(generateQuestion, 1000);
+            } else {
+                button.classList.add('incorrect');
+                resultMessageEl.textContent = `Sai rồi. Đáp án đúng là: ${correctAnswer}`;
+                const correctButton = Array.from(allButtons).find(btn => btn.textContent === correctAnswer);
+                if (correctButton) {
+                    correctButton.classList.add('correct');
+                }
+                nextButton.classList.remove('hidden');
+            }
+        }
+
+        // Chuyển đổi giữa các trang
+        function showHomePage() {
+            homePage.classList.remove('hidden');
+            quizPage.classList.add('hidden');
+            quizNavigation.classList.add('hidden');
+        }
+
+        function showQuizPage() {
+            homePage.classList.add('hidden');
+            quizPage.classList.remove('hidden');
+            quizNavigation.classList.remove('hidden');
+        }
+
+        // Sự kiện khi nhấn nút trên trang chủ
+        homeButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                const quizSize = parseInt(event.target.dataset.quizSize);
+                totalWordsForQuiz = quizSize;
+                
+                shuffleArray(vocabulary);
+                availableWords = vocabulary.slice(0, quizSize);
+                
+                showQuizPage();
+                generateQuestion();
+            });
+        });
+
+        // Sự kiện khi nhấn nút "Tiếp theo"
+        nextButton.addEventListener('click', generateQuestion);
+
+        // Sự kiện khi nhấn nút "Trang chủ"
+        backButton.addEventListener('click', () => {
+            // Đặt lại các biến để bắt đầu lại quiz mới
+            availableWords = [];
+            totalWordsForQuiz = 0;
+            showHomePage();
+        });
+    </script>
+
 </body>
 </html>
