@@ -148,6 +148,46 @@
             margin-bottom: 25px;
         }
 
+        /* Custom Quiz Input styles */
+        .custom-quiz-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .custom-quiz-input-container input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* Add Word Page styles */
+        #add-word-page {
+            text-align: left;
+        }
+        #add-word-page input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        #add-word-page label {
+            font-weight: 700;
+            margin-bottom: 5px;
+            display: block;
+        }
+        #add-word-page #add-button {
+            width: 100%;
+            background-color: #2ecc71;
+            color: white;
+        }
+
         /* Responsive design */
         @media (min-width: 600px) {
             .options-container {
@@ -163,13 +203,30 @@
 
     <!-- Trang chủ -->
     <div id="home-page" class="card-container home-page">
-        <h1>Học từ vựng tiếng Nhật</h1>
+        <h1>Chào mừng đến với web của Quyền</h1>
         <p>Chọn số lượng từ bạn muốn học trong mỗi lần trắc nghiệm.</p>
         <div class="options-container">
             <button class="option-button" data-quiz-size="15">Học 15 từ</button>
             <button class="option-button" data-quiz-size="20">Học 20 từ</button>
-            <button class="option-button" data-quiz-size="50">Học 50 từ (Toàn bộ)</button>
+            <div class="custom-quiz-input-container">
+                <input type="number" id="custom-quiz-input" placeholder="Số từ">
+                <button class="nav-button" id="start-custom-quiz">Bắt đầu</button>
+            </div>
+            <button class="option-button" id="add-word-option">Thêm từ mới</button>
         </div>
+    </div>
+
+    <!-- Trang thêm từ mới -->
+    <div id="add-word-page" class="card-container hidden">
+        <h2>Thêm từ vựng mới</h2>
+        <label for="japanese-input">Từ tiếng Nhật:</label>
+        <input type="text" id="japanese-input" placeholder="Nhập từ tiếng Nhật (ví dụ: こんにちは)">
+        <label for="romaji-input">Romaji:</label>
+        <input type="text" id="romaji-input" placeholder="Nhập romaji (ví dụ: konnichiwa)">
+        <label for="vietnamese-input">Nghĩa tiếng Việt:</label>
+        <input type="text" id="vietnamese-input" placeholder="Nhập nghĩa tiếng Việt (ví dụ: Xin chào)">
+        <button class="nav-button" id="add-button">Thêm từ</button>
+        <div id="add-message" style="margin-top: 15px; color: #2ecc71;"></div>
     </div>
 
     <!-- Trang trắc nghiệm -->
@@ -191,8 +248,8 @@
     </div>
 
     <script>
-        // Danh sách 50 từ tiếng Nhật thông dụng
-        const vocabulary = [
+        // Danh sách 50 từ tiếng Nhật ban đầu
+        const initialVocabulary = [
             { japanese: 'こんにちは', romaji: 'konnichiwa', vietnamese: 'Xin chào' },
             { japanese: 'ありがとう', romaji: 'arigatou', vietnamese: 'Cảm ơn' },
             { japanese: 'すみません', romaji: 'sumimasen', vietnamese: 'Xin lỗi / Xin phép' },
@@ -245,14 +302,33 @@
             { japanese: 'いってきます', romaji: 'ittekimasu', vietnamese: 'Tôi đi đây (sẽ quay lại)' }
         ];
 
+        let vocabulary = [...initialVocabulary];
         let availableWords = [];
         let totalWordsForQuiz = 0;
+        
+        // Load vocabulary from local storage
+        function loadCustomVocabulary() {
+            const customWords = JSON.parse(localStorage.getItem('customVocabulary')) || [];
+            vocabulary = [...initialVocabulary, ...customWords];
+        }
+
+        // Save vocabulary to local storage
+        function saveCustomVocabulary(newWord) {
+            const customWords = JSON.parse(localStorage.getItem('customVocabulary')) || [];
+            customWords.push(newWord);
+            localStorage.setItem('customVocabulary', JSON.stringify(customWords));
+            loadCustomVocabulary(); // Reload all words
+        }
 
         // Các phần tử DOM
         const homePage = document.getElementById('home-page');
         const quizPage = document.getElementById('quiz-page');
         const quizNavigation = document.getElementById('quiz-navigation');
-        const homeButtons = document.querySelectorAll('#home-page .option-button');
+        const addWordPage = document.getElementById('add-word-page');
+        const fixedSizeQuizButtons = document.querySelectorAll('#home-page .option-button[data-quiz-size]');
+        const addWordOptionButton = document.getElementById('add-word-option');
+        const startCustomQuizButton = document.getElementById('start-custom-quiz');
+        const customQuizInput = document.getElementById('custom-quiz-input');
         const backButton = document.getElementById('back-button');
         const japaneseWordEl = document.getElementById('japanese-word');
         const romajiEl = document.getElementById('romaji');
@@ -260,6 +336,12 @@
         const nextButton = document.getElementById('next-button');
         const counterEl = document.getElementById('counter');
         const resultMessageEl = document.getElementById('result-message');
+        
+        const japaneseInput = document.getElementById('japanese-input');
+        const romajiInput = document.getElementById('romaji-input');
+        const vietnameseInput = document.getElementById('vietnamese-input');
+        const addButton = document.getElementById('add-button');
+        const addMessage = document.getElementById('add-message');
         
         // Hàm xáo trộn mảng
         function shuffleArray(array) {
@@ -335,26 +417,85 @@
             homePage.classList.remove('hidden');
             quizPage.classList.add('hidden');
             quizNavigation.classList.add('hidden');
+            addWordPage.classList.add('hidden');
         }
 
         function showQuizPage() {
             homePage.classList.add('hidden');
             quizPage.classList.remove('hidden');
             quizNavigation.classList.remove('hidden');
+            addWordPage.classList.add('hidden');
+        }
+
+        function showAddWordPage() {
+            homePage.classList.add('hidden');
+            quizPage.classList.add('hidden');
+            quizNavigation.classList.remove('hidden');
+            addWordPage.classList.remove('hidden');
+            backButton.classList.remove('hidden'); // Ensure back button is visible
+            nextButton.classList.add('hidden'); // Hide next button on this page
         }
 
         // Sự kiện khi nhấn nút trên trang chủ
-        homeButtons.forEach(button => {
+        fixedSizeQuizButtons.forEach(button => {
             button.addEventListener('click', (event) => {
-                const quizSize = parseInt(event.target.dataset.quizSize);
-                totalWordsForQuiz = quizSize;
-                
-                shuffleArray(vocabulary);
-                availableWords = vocabulary.slice(0, quizSize);
-                
-                showQuizPage();
-                generateQuestion();
+                const quizSize = parseInt(event.target.dataset.quiz-size);
+                if (!isNaN(quizSize)) {
+                    totalWordsForQuiz = quizSize;
+                    
+                    shuffleArray(vocabulary);
+                    availableWords = vocabulary.slice(0, quizSize);
+                    
+                    showQuizPage();
+                    generateQuestion();
+                }
             });
+        });
+
+        // Sự kiện khi nhấn nút "Bắt đầu" cho quiz tùy chỉnh
+        startCustomQuizButton.addEventListener('click', () => {
+            const quizSize = parseInt(customQuizInput.value.trim());
+
+            if (isNaN(quizSize) || quizSize <= 0 || quizSize > vocabulary.length) {
+                resultMessageEl.textContent = `Vui lòng nhập một số hợp lệ từ 1 đến ${vocabulary.length}.`;
+                resultMessageEl.style.color = '#e74c3c';
+                setTimeout(() => resultMessageEl.textContent = '', 3000);
+                return;
+            }
+
+            totalWordsForQuiz = quizSize;
+            shuffleArray(vocabulary);
+            availableWords = vocabulary.slice(0, quizSize);
+            
+            showQuizPage();
+            generateQuestion();
+        });
+        
+        // Sự kiện khi nhấn nút "Thêm từ mới"
+        addWordOptionButton.addEventListener('click', showAddWordPage);
+
+        // Sự kiện khi nhấn nút "Thêm từ"
+        addButton.addEventListener('click', () => {
+            const japanese = japaneseInput.value.trim();
+            const romaji = romajiInput.value.trim();
+            const vietnamese = vietnameseInput.value.trim();
+
+            if (japanese && romaji && vietnamese) {
+                const newWord = { japanese, romaji, vietnamese };
+                saveCustomVocabulary(newWord);
+                addMessage.textContent = 'Đã thêm từ thành công!';
+                japaneseInput.value = '';
+                romajiInput.value = '';
+                vietnameseInput.value = '';
+                
+                // Clear message after a few seconds
+                setTimeout(() => {
+                    addMessage.textContent = '';
+                }, 3000);
+            } else {
+                addMessage.textContent = 'Vui lòng nhập đủ các trường.';
+                addMessage.style.color = '#e74c3c';
+            }
         });
 
         // Sự kiện khi nhấn nút "Tiếp theo"
@@ -365,6 +506,13 @@
             // Đặt lại các biến để bắt đầu lại quiz mới
             availableWords = [];
             totalWordsForQuiz = 0;
+            showHomePage();
+            resultMessageEl.textContent = ''; // Clear result message when going back to home
+        });
+        
+        // Load custom vocabulary initially
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCustomVocabulary();
             showHomePage();
         });
     </script>
