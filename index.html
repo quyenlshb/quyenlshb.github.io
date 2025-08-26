@@ -23,12 +23,6 @@
         <h1 class="text-3xl md:text-4xl font-bold text-center mb-6 text-indigo-700">Đăng Bài Báo Mới</h1>
         <p class="text-center text-gray-600 mb-8">Nhập tiêu đề và nội dung để tạo bài viết mới.</p>
 
-        <!-- Thẻ người dùng -->
-        <div id="user-info" class="flex flex-col items-center mb-6 p-4 bg-indigo-50 rounded-lg text-indigo-800">
-            <span class="font-semibold text-lg">Chào mừng bạn!</span>
-            <span id="user-id-display" class="mt-2 text-sm md:text-base break-all text-center">ID của bạn: </span>
-        </div>
-
         <!-- Form nhập liệu -->
         <form id="post-form" class="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
             <div class="mb-4">
@@ -44,12 +38,15 @@
             </button>
         </form>
 
-        <!-- Danh sách bài viết -->
-        <div id="posts-container" class="space-y-8">
-            <!-- Các bài viết sẽ được hiển thị tại đây -->
-            <div id="loading-spinner" class="text-center py-8">
+        <!-- Container for posts and loading state -->
+        <div id="posts-container-wrapper" class="relative">
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10 transition-opacity duration-300 hidden">
                 <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mx-auto"></div>
-                <p class="mt-2 text-gray-500">Đang tải bài viết...</p>
+            </div>
+            <!-- Danh sách bài viết -->
+            <div id="posts-container" class="space-y-8">
+                <!-- Các bài viết sẽ được hiển thị tại đây -->
             </div>
         </div>
 
@@ -58,9 +55,9 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, serverTimestamp, orderBy, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
         // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
@@ -68,51 +65,52 @@
         
         let db;
         let auth;
-        let userId;
+
+        // Display loading spinner
+        function showLoading() {
+            document.getElementById('loading-spinner').classList.remove('hidden');
+        }
+
+        // Hide loading spinner
+        function hideLoading() {
+            document.getElementById('loading-spinner').classList.add('hidden');
+        }
 
         // Initialize Firebase
-        function initializeFirebase() {
+        async function initializeFirebase() {
+            showLoading();
             try {
                 const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
                 db = getFirestore(app);
+                auth = getAuth(app);
                 
-                // Set up auth state listener
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        // User is signed in.
-                        userId = user.uid;
-                        document.getElementById('user-id-display').textContent = `ID của bạn: ${userId}`;
-                        console.log("User authenticated with ID:", userId);
-                        
-                        // Once authenticated, start listening for blog posts
-                        listenForPosts();
+                // Sign in anonymously to allow access to public data
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("Signed in with custom token.");
+                } else {
+                    await signInAnonymously(auth);
+                    console.log("Signed in anonymously.");
+                }
 
-                    } else {
-                        // User is signed out.
-                        console.log("No user is signed in. Attempting to sign in...");
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                            console.log("Signed in with custom token.");
-                        } else {
-                            await signInAnonymously(auth);
-                            console.log("Signed in anonymously.");
-                        }
-                    }
-                });
+                // Start listening for blog posts
+                listenForPosts();
+
             } catch (error) {
                 console.error("Lỗi khi khởi tạo Firebase:", error);
+                hideLoading();
             }
         }
         
         // Listen for real-time updates to the blog posts
         function listenForPosts() {
-            if (!db || !userId) {
-                console.error("Firestore hoặc User ID chưa sẵn sàng.");
+            if (!db) {
+                console.error("Firestore chưa sẵn sàng.");
+                hideLoading();
                 return;
             }
 
-            const postsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/blog_posts`);
+            const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/blog_posts`);
             const q = query(postsCollectionRef, orderBy('createdAt', 'desc'));
 
             // onSnapshot provides a real-time listener
@@ -122,6 +120,7 @@
 
                 if (snapshot.empty) {
                     postsContainer.innerHTML = '<p class="text-center text-gray-500 italic">Chưa có bài viết nào. Hãy thêm bài viết đầu tiên của bạn!</p>';
+                    hideLoading();
                     return;
                 }
 
@@ -156,6 +155,7 @@
                         deletePost(docId);
                     });
                 });
+                hideLoading();
             });
         }
 
@@ -163,8 +163,8 @@
         async function addPost(e) {
             e.preventDefault();
             
-            if (!db || !userId) {
-                console.error("Firestore hoặc User ID chưa sẵn sàng.");
+            if (!db) {
+                alert("Lỗi: Không thể kết nối với cơ sở dữ liệu. Vui lòng thử lại.");
                 return;
             }
 
@@ -176,8 +176,9 @@
                 return;
             }
 
+            showLoading();
             try {
-                const postsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/blog_posts`);
+                const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/blog_posts`);
                 await addDoc(postsCollectionRef, {
                     title: title,
                     content: content,
@@ -189,22 +190,32 @@
 
             } catch (error) {
                 console.error("Lỗi khi thêm tài liệu: ", error);
+                alert("Lỗi khi đăng bài viết: " + error.message);
+            } finally {
+                hideLoading();
             }
         }
 
         // Delete a blog post from Firestore
         async function deletePost(docId) {
-            if (!db || !userId) {
-                console.error("Firestore hoặc User ID chưa sẵn sàng.");
+            if (!confirm("Bạn có chắc chắn muốn xóa bài viết này không?")) {
+                return;
+            }
+            if (!db) {
+                alert("Lỗi: Không thể kết nối với cơ sở dữ liệu.");
                 return;
             }
 
+            showLoading();
             try {
-                const docRef = doc(db, `artifacts/${appId}/users/${userId}/blog_posts`, docId);
+                const docRef = doc(db, `artifacts/${appId}/public/data/blog_posts`, docId);
                 await deleteDoc(docRef);
                 console.log("Đã xóa bài viết thành công!");
             } catch (error) {
                 console.error("Lỗi khi xóa tài liệu: ", error);
+                alert("Lỗi khi xóa bài viết: " + error.message);
+            } finally {
+                hideLoading();
             }
         }
         
