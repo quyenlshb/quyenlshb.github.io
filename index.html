@@ -1,606 +1,219 @@
-import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, onSnapshot, getDocs } from 'firebase/firestore';
-
-// IMPORTANT: Do not remove these global variables
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
-
-const defaultCourse = {
-  name: "80 từ vựng thông dụng",
-  words: [
-    { japanese: "こんにちは", hiragana: "konnichiwa", vietnamese: "Xin chào" },
-    { japanese: "ありがとう", hiragana: "arigatou", vietnamese: "Cảm ơn" },
-    { japanese: "さようなら", hiragana: "sayounara", vietnamese: "Tạm biệt" },
-    { japanese: "はい", hiragana: "hai", vietnamese: "Vâng, có" },
-    { japanese: "いいえ", hiragana: "iie", vietnamese: "Không" },
-    { japanese: "ごめんなさい", hiragana: "gomennasai", vietnamese: "Xin lỗi" },
-    { japanese: "すみません", hiragana: "sumimasen", vietnamese: "Xin lỗi, làm phiền" },
-    { japanese: "おやすみ", hiragana: "oyasumi", vietnamese: "Chúc ngủ ngon" },
-    { japanese: "おはようございます", hiragana: "ohayou gozaimasu", vietnamese: "Chào buổi sáng" },
-    { japanese: "いただきます", hiragana: "itadakimasu", vietnamese: "Mời ăn" },
-    { japanese: "ごちそうさまでした", hiragana: "gochisousama deshita", vietnamese: "Cảm ơn vì bữa ăn ngon" },
-    { japanese: "はじめまして", hiragana: "hajimemashite", vietnamese: "Rất vui được gặp bạn" },
-    { japanese: "どうぞ", hiragana: "douzo", vietnamese: "Xin mời" },
-    { japanese: "おいしい", hiragana: "oishii", vietnamese: "Ngon" },
-    { japanese: "げんき", hiragana: "genki", vietnamese: "Khỏe mạnh" },
-    { japanese: "だれ", hiragana: "dare", vietnamese: "Ai" },
-    { japanese: "どこ", hiragana: "doko", vietnamese: "Ở đâu" },
-    { japanese: "いつ", hiragana: "itsu", vietnamese: "Khi nào" },
-    { japanese: "なに", hiragana: "nani", vietnamese: "Cái gì" },
-    { japanese: "どうして", hiragana: "doushite", vietnamese: "Tại sao" },
-    { japanese: "いくら", hiragana: "ikura", vietnamese: "Bao nhiêu" },
-    { japanese: "わたし", hiragana: "watashi", vietnamese: "Tôi" },
-    { japanese: "あなた", hiragana: "anata", vietnamese: "Bạn" },
-    { japanese: "かれ", hiragana: "kare", vietnamese: "Anh ấy" },
-    { japanese: "かのじょ", hiragana: "kanojo", vietnamese: "Cô ấy" },
-    { japanese: "がくせい", hiragana: "gakusei", vietnamese: "Học sinh" },
-    { japanese: "せんせい", hiragana: "sensei", vietnamese: "Giáo viên" },
-    { japanese: "いしゃ", hiragana: "isha", vietnamese: "Bác sĩ" },
-    { japanese: "かいしゃいん", hiragana: "kaishain", vietnamese: "Nhân viên công ty" },
-    { japanese: "ほん", hiragana: "hon", vietnamese: "Sách" },
-    { japanese: "えんぴつ", hiragana: "enpitsu", vietnamese: "Bút chì" },
-    { japanese: "かさ", hiragana: "kasa", vietnamese: "Ô" },
-    { japanese: "くるま", hiragana: "kuruma", vietnamese: "Ô tô" },
-    { japanese: "でんわ", hiragana: "denwa", vietnamese: "Điện thoại" },
-    { japanese: "てがみ", hiragana: "tegami", vietnamese: "Thư" },
-    { japanese: "かばん", hiragana: "kaban", vietnamese: "Cặp sách" },
-    { japanese: "とけい", hiragana: "tokei", vietnamese: "Đồng hồ" },
-    { japanese: "いぬ", hiragana: "inu", vietnamese: "Chó" },
-    { japanese: "ねこ", hiragana: "neko", vietnamese: "Mèo" },
-    { japanese: "さかな", hiragana: "sakana", vietnamese: "Cá" },
-    { japanese: "みず", hiragana: "mizu", vietnamese: "Nước" },
-    { japanese: "おちゃ", hiragana: "ocha", vietnamese: "Trà" },
-    { japanese: "ごはん", hiragana: "gohan", vietnamese: "Cơm" },
-    { japanese: "パン", hiragana: "pan", vietnamese: "Bánh mì" },
-    { japanese: "くだもの", hiragana: "kudamono", vietnamese: "Hoa quả" },
-    { japanese: "やさい", hiragana: "yasai", vietnamese: "Rau" },
-    { japanese: "てんき", hiragana: "tenki", vietnamese: "Thời tiết" },
-    { japanese: "きょう", hiragana: "kyou", vietnamese: "Hôm nay" },
-    { japanese: "きのう", hiragana: "kinou", vietnamese: "Hôm qua" },
-    { japanese: "あした", hiragana: "ashita", vietnamese: "Ngày mai" },
-    { japanese: "食べます", hiragana: "tabemasu", vietnamese: "ăn" },
-    { japanese: "飲みます", hiragana: "nomimasu", vietnamese: "uống" },
-    { japanese: "行きます", hiragana: "ikimasu", vietnamese: "đi" },
-    { japanese: "来ます", hiragana: "kimasu", vietnamese: "đến" },
-    { japanese: "買います", hiragana: "kaimasu", vietnamese: "mua" },
-    { japanese: "見ます", hiragana: "mimasu", vietnamese: "nhìn, xem" },
-    { japanese: "聞きます", hiragana: "kikimasu", vietnamese: "nghe" },
-    { japanese: "書きます", hiragana: "kakimasu", vietnamese: "viết" },
-    { japanese: "話します", hiragana: "hanashimasu", vietnamese: "nói chuyện" },
-    { japanese: "読みます", hiragana: "yomimasu", vietnamese: "đọc" },
-    { japanese: "ねます", hiragana: "nemasu", vietnamese: "ngủ" },
-    { japanese: "おきます", hiragana: "okimasu", vietnamese: "thức dậy" },
-    { japanese: "べんきょうします", hiragana: "benkyou shimasu", vietnamese: "học" },
-    { japanese: "しごと", hiragana: "shigoto", vietnamese: "công việc" },
-    { japanese: "がっこう", hiragana: "gakkou", vietnamese: "trường học" },
-    { japanese: "えき", hiragana: "eki", vietnamese: "nhà ga" },
-    { japanese: "びょういん", hiragana: "byouin", vietnamese: "bệnh viện" },
-    { japanese: "ぎんこう", hiragana: "ginkou", vietnamese: "ngân hàng" },
-    { japanese: "デパート", hiragana: "depāto", vietnamese: "trung tâm thương mại" },
-    { japanese: "レストラン", hiragana: "resutoran", vietnamese: "nhà hàng" },
-    { japanese: "としょかん", hiragana: "toshokan", vietnamese: "thư viện" },
-    { japanese: "くうこう", hiragana: "kuukou", vietnamese: "sân bay" },
-    { japanese: "うち", hiragana: "uchi", vietnamese: "nhà" },
-    { japanese: "まち", hiragana: "machi", vietnamese: "thành phố" },
-    { japanese: "かぞく", hiragana: "kazoku", vietnamese: "gia đình" },
-    { japanese: "ともだち", hiragana: "tomodachi", vietnamese: "bạn bè" },
-    { japanese: "きょうだい", hiragana: "kyoudai", vietnamese: "anh chị em" },
-    { japanese: "おとうさん", hiragana: "otousan", vietnamese: "bố" },
-    { japanese: "おかあさん", hiragana: "okaasan", vietnamese: "mẹ" },
-    { japanese: "こども", hiragana: "kodomo", vietnamese: "con cái" },
-  ]
-};
-
-const QuizState = {
-  NOT_STARTED: 'NOT_STARTED',
-  IN_PROGRESS: 'IN_PROGRESS',
-  ANSWER_SELECTED: 'ANSWER_SELECTED',
-  FINISHED: 'FINISHED',
-};
-
-const App = () => {
-  // Firebase state
-  const [app, setApp] = useState(null);
-  const [auth, setAuth] = useState(null);
-  const [db, setDb] = useState(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userId, setUserId] = useState(null);
-
-  // App state
-  const [currentPage, setCurrentPage] = useState('login'); // 'login', 'home', 'add-course', 'quiz'
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-
-  // Quiz state
-  const [quizState, setQuizState] = useState(QuizState.NOT_STARTED);
-  const [quizWords, setQuizWords] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [quizSummary, setQuizSummary] = useState({});
-  const [userAnswer, setUserAnswer] = useState(null);
-  const [isCorrect, setIsCorrect] = useState(null);
-  const [showHiragana, setShowHiragana] = useState(false);
-
-  // Initialize Firebase and Auth listener
-  useEffect(() => {
-    try {
-      const firebaseApp = initializeApp(firebaseConfig);
-      const firebaseAuth = getAuth(firebaseApp);
-      const firestoreDb = getFirestore(firebaseApp);
-
-      setApp(firebaseApp);
-      setAuth(firebaseAuth);
-      setDb(firestoreDb);
-
-      onAuthStateChanged(firebaseAuth, async (user) => {
-        if (user) {
-          setIsLoggedIn(true);
-          setUserId(user.uid);
-          await checkAndAddDefaultCourse(user.uid, firestoreDb);
-          setCurrentPage('home');
-        } else {
-          setIsLoggedIn(false);
-          setUserId(null);
-          setCurrentPage('login');
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng Bài Báo</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
         }
-        setIsAuthReady(true);
-      });
+        .prose p {
+            margin-bottom: 1em;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-      if (initialAuthToken) {
-        signInWithCustomToken(firebaseAuth, initialAuthToken);
-      } else {
-        signInAnonymously(firebaseAuth);
-      }
-    } catch (error) {
-      console.error("Firebase initialization error:", error);
-      setErrorMessage("Lỗi khởi tạo Firebase. Vui lòng thử lại.");
-    }
-  }, []);
+    <div class="bg-white rounded-xl shadow-2xl p-6 md:p-10 w-full max-w-4xl">
+        <h1 class="text-3xl md:text-4xl font-bold text-center mb-6 text-indigo-700">Đăng Bài Báo Mới</h1>
+        <p class="text-center text-gray-600 mb-8">Nhập tiêu đề và nội dung để tạo bài viết mới.</p>
 
-  // Fetch courses from Firestore
-  useEffect(() => {
-    if (!isAuthReady || !db || !userId) return;
-
-    const coursesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/courses`);
-    const q = query(coursesCollectionRef);
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const coursesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setCourses(coursesData);
-    }, (error) => {
-      console.error("Lỗi lấy dữ liệu khóa học:", error);
-      setErrorMessage("Không thể tải khóa học. Vui lòng thử lại.");
-    });
-
-    return () => unsubscribe();
-  }, [isAuthReady, db, userId]);
-
-  // Handle Firebase Login/Signup
-  const handleAuth = async (isSignup) => {
-    setErrorMessage('');
-    // Simple email validation before attempting Firebase auth
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setErrorMessage("Vui lòng nhập một địa chỉ email hợp lệ.");
-      return;
-    }
-
-    try {
-      if (isSignup) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
-    } catch (error) {
-      console.error("Lỗi xác thực:", error);
-      setErrorMessage("Đăng nhập/Đăng ký thất bại. Vui lòng kiểm tra lại email và mật khẩu.");
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setCourses([]);
-      setSelectedCourse(null);
-      setCurrentPage('login');
-      // No need to reset userId and isLoggedIn as onAuthStateChanged will handle it
-    } catch (error) {
-      console.error("Lỗi đăng xuất:", error);
-      setErrorMessage("Đăng xuất thất bại. Vui lòng thử lại.");
-    }
-  };
-
-  // Check and add default course
-  const checkAndAddDefaultCourse = async (uid, firestoreDb) => {
-    // Luôn ghi đè khóa học mặc định để đảm bảo nó luôn được cập nhật với dữ liệu mới nhất.
-    // Điều này sẽ giải quyết vấn đề khóa học không cập nhật khi có từ mới.
-    const defaultCourseDocRef = doc(firestoreDb, `artifacts/${appId}/users/${uid}/courses/default`);
-    await setDoc(defaultCourseDocRef, defaultCourse);
-  };
-
-  // Handle course file upload
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const text = event.target.result;
-      const lines = text.split('\n').filter(line => line.trim() !== '');
-      const newWords = lines.map(line => {
-        const parts = line.split(',').map(part => part.trim());
-        return {
-          japanese: parts[0],
-          hiragana: parts[1],
-          vietnamese: parts[2]
-        };
-      });
-
-      if (newWords.some(word => !word.japanese || !word.hiragana || !word.vietnamese)) {
-        setErrorMessage("Định dạng tệp không đúng. Vui lòng sử dụng định dạng: từ tiếng Nhật, hiragana, nghĩa tiếng Việt.");
-        return;
-      }
-
-      const courseName = file.name.replace('.txt', '').replace('.csv', '').trim() || `Khóa học mới - ${Date.now()}`;
-      const newCourseData = {
-        name: courseName,
-        words: newWords
-      };
-
-      try {
-        const coursesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/courses`);
-        await setDoc(doc(coursesCollectionRef, courseName.toLowerCase().replace(/\s/g, '-')), newCourseData);
-        setCurrentPage('home');
-        setErrorMessage('');
-      } catch (error) {
-        console.error("Lỗi thêm khóa học:", error);
-        setErrorMessage("Không thể thêm khóa học. Vui lòng thử lại.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // Start a new quiz
-  const startQuiz = (course) => {
-    if (!course || course.words.length < 5) {
-      setErrorMessage("Khóa học không đủ từ để tạo bài trắc nghiệm (tối thiểu 5 từ).");
-      return;
-    }
-
-    setSelectedCourse(course);
-    setQuizState(QuizState.IN_PROGRESS);
-    setScore(0);
-    setQuizSummary({});
-    setCurrentQuestionIndex(0);
-
-    // Randomly select 5 unique words
-    const selectedWords = [];
-    const tempWords = [...course.words];
-    while (selectedWords.length < 5 && tempWords.length > 0) {
-      const randomIndex = Math.floor(Math.random() * tempWords.length);
-      selectedWords.push(tempWords[randomIndex]);
-      tempWords.splice(randomIndex, 1);
-    }
-    
-    // Repeat each word 3 times and shuffle
-    const quizQuestions = selectedWords.flatMap(word => [word, word, word]);
-    // Shuffle the array using Fisher-Yates shuffle
-    for (let i = quizQuestions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [quizQuestions[i], quizQuestions[j]] = [quizQuestions[j], quizQuestions[i]];
-    }
-
-    setQuizWords(quizQuestions);
-    setErrorMessage('');
-    
-    // Initialize summary
-    const initialSummary = {};
-    selectedWords.forEach(word => {
-      initialSummary[word.japanese] = { correct: 0, total: 0 };
-    });
-    setQuizSummary(initialSummary);
-  };
-
-  // Handle user's answer
-  const handleAnswer = (answer) => {
-    if (quizState !== QuizState.IN_PROGRESS) return;
-
-    const currentWord = quizWords[currentQuestionIndex];
-    const isCorrectAnswer = (answer === currentWord.vietnamese);
-    setIsCorrect(isCorrectAnswer);
-    setShowHiragana(true);
-    setUserAnswer(answer);
-    setQuizState(QuizState.ANSWER_SELECTED);
-
-    setQuizSummary(prev => {
-      const newSummary = { ...prev };
-      newSummary[currentWord.japanese].total += 1;
-      if (isCorrectAnswer) {
-        newSummary[currentWord.japanese].correct += 1;
-        setScore(prevScore => prevScore + 1);
-      }
-      return newSummary;
-    });
-
-    if (isCorrectAnswer) {
-      setTimeout(() => {
-        nextQuestion();
-      }, 1000);
-    }
-  };
-
-  // Move to the next question
-  const nextQuestion = () => {
-    const nextIndex = currentQuestionIndex + 1;
-    if (nextIndex < quizWords.length) {
-      setCurrentQuestionIndex(nextIndex);
-      setQuizState(QuizState.IN_PROGRESS);
-      setIsCorrect(null);
-      setUserAnswer(null);
-      setShowHiragana(false);
-    } else {
-      setQuizState(QuizState.FINISHED);
-    }
-  };
-
-  // Generate answer options for the current question
-  const generateOptions = () => {
-    const currentWord = quizWords[currentQuestionIndex];
-    if (!currentWord) return [];
-
-    const otherWords = selectedCourse.words.filter(word => word.japanese !== currentWord.japanese);
-    const shuffledOthers = [...otherWords].sort(() => 0.5 - Math.random());
-    const incorrectOptions = shuffledOthers.slice(0, 3).map(word => word.vietnamese);
-    const options = [currentWord.vietnamese, ...incorrectOptions];
-
-    // Shuffle options
-    for (let i = options.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [options[i], options[j]] = [options[j], options[i]];
-    }
-    return options;
-  };
-
-  const renderAuthPage = () => (
-    <div className="flex flex-col items-center justify-center p-6 bg-gray-50 min-h-screen">
-      <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-2xl font-bold text-center text-gray-800">Đăng nhập / Đăng ký</h2>
-        {errorMessage && <div className="text-sm text-red-500 text-center">{errorMessage}</div>}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="password"
-          placeholder="Mật khẩu"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onClick={() => handleAuth(false)}
-          className="w-full px-4 py-3 text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-        >
-          Đăng nhập
-        </button>
-        <button
-          onClick={() => handleAuth(true)}
-          className="w-full px-4 py-3 text-white bg-green-600 rounded-lg shadow-md hover:bg-green-700 transition-colors"
-        >
-          Đăng ký
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderHomePage = () => (
-    <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
-      <div className="w-full max-w-2xl p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-800">Khóa học của tôi</h2>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg shadow-md hover:bg-red-700 transition-colors"
-          >
-            Đăng xuất
-          </button>
+        <!-- Thẻ người dùng -->
+        <div id="user-info" class="flex flex-col items-center mb-6 p-4 bg-indigo-50 rounded-lg text-indigo-800">
+            <span class="font-semibold text-lg">Chào mừng bạn!</span>
+            <span id="user-id-display" class="mt-2 text-sm md:text-base break-all text-center">ID của bạn: </span>
         </div>
-        <p className="text-gray-600">ID Người dùng: {userId}</p>
-        {errorMessage && <div className="text-sm text-red-500">{errorMessage}</div>}
-        <div className="space-y-4">
-          {courses.length > 0 ? (
-            courses.map(course => (
-              <div
-                key={course.id}
-                className="flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm"
-              >
-                <span className="text-lg font-medium text-gray-700">{course.name}</span>
-                {/* Conditionally render the button based on the number of words */}
-                {course.words && course.words.length >= 5 ? (
-                  <button
-                    onClick={() => startQuiz(course)}
-                    className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                  >
-                    Bắt đầu trắc nghiệm
-                  </button>
-                ) : (
-                  <span className="text-sm text-red-500">Không đủ từ ({course.words.length} / 5)</span>
-                )}
-              </div>
-            ))
-          ) : (
-            <p className="text-center text-gray-500">Bạn chưa có khóa học nào.</p>
-          )}
-        </div>
-        <button
-          onClick={() => setCurrentPage('add-course')}
-          className="w-full px-4 py-3 text-white bg-purple-600 rounded-lg shadow-md hover:bg-purple-700 transition-colors mt-6"
-        >
-          Thêm khóa học mới
-        </button>
-      </div>
-    </div>
-  );
 
-  const renderAddCoursePage = () => (
-    <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-2xl font-bold text-center text-gray-800">Thêm Khóa học</h2>
-        <p className="text-sm text-gray-600 text-center">Tải lên tệp .txt hoặc .csv với định dạng: <br /> <code className="bg-gray-200 p-1 rounded">từ tiếng Nhật, hiragana, nghĩa tiếng Việt</code></p>
-        {errorMessage && <div className="text-sm text-red-500 text-center">{errorMessage}</div>}
-        <input
-          type="file"
-          accept=".txt,.csv" // Updated to accept both .txt and .csv
-          onChange={handleFileUpload}
-          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
-        />
-        <button
-          onClick={() => setCurrentPage('home')}
-          className="w-full px-4 py-3 text-white bg-gray-600 rounded-lg shadow-md hover:bg-gray-700 transition-colors"
-        >
-          Trở về Trang chủ
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderQuizPage = () => {
-    if (quizState === QuizState.FINISHED) {
-      return (
-        <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
-          <div className="w-full max-w-xl p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
-            <h2 className="text-2xl font-bold text-center text-gray-800">Kết thúc bài trắc nghiệm</h2>
-            <p className="text-center text-xl font-semibold text-gray-700">Điểm của bạn: {score}/{quizWords.length}</p>
-            <h3 className="text-xl font-semibold text-gray-800">Tóm tắt kết quả:</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 rounded-lg">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Từ vựng</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lần trả lời đúng</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {Object.entries(quizSummary).map(([word, summary]) => (
-                    <tr key={word}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{word}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{summary.correct} / {summary.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <!-- Form nhập liệu -->
+        <form id="post-form" class="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
+            <div class="mb-4">
+                <label for="post-title" class="block text-gray-700 font-semibold mb-2">Tiêu đề</label>
+                <input type="text" id="post-title" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nhập tiêu đề bài viết">
             </div>
-            <button
-              onClick={() => setCurrentPage('home')}
-              className="w-full px-4 py-3 text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-            >
-              Trở về Trang chủ
+            <div class="mb-4">
+                <label for="post-content" class="block text-gray-700 font-semibold mb-2">Nội dung</label>
+                <textarea id="post-content" rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nhập nội dung bài viết"></textarea>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                Đăng Bài
             </button>
-          </div>
-        </div>
-      );
-    }
+        </form>
 
-    const currentWord = quizWords[currentQuestionIndex];
-    if (!currentWord) return null;
-
-    const options = generateOptions();
-
-    return (
-      <div className="flex flex-col items-center justify-center p-6 bg-gray-50 min-h-screen">
-        <div className="w-full max-w-xl p-8 space-y-6 bg-white rounded-xl shadow-lg border border-gray-200">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">{currentWord.japanese}</h2>
-            {showHiragana && <p className="text-xl text-gray-600 mb-4">{currentWord.hiragana}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {options.map((option, index) => (
-              <button
-                key={index}
-                onClick={() => handleAnswer(option)}
-                disabled={quizState === QuizState.ANSWER_SELECTED}
-                className={`w-full px-4 py-3 text-lg rounded-lg shadow-md transition-all
-                  ${quizState === QuizState.ANSWER_SELECTED
-                    ? (option === currentWord.vietnamese
-                      ? 'bg-green-500 text-white'
-                      : (option === userAnswer ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-800 cursor-not-allowed'))
-                    : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
-                  }`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-
-          {quizState === QuizState.ANSWER_SELECTED && (
-            <div className="flex flex-col items-center mt-6">
-              <p className={`text-xl font-bold mb-4 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                {isCorrect ? 'Chính xác!' : 'Sai rồi!'}
-              </p>
-              {!isCorrect && (
-                <button
-                  onClick={nextQuestion}
-                  className="px-6 py-3 text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                >
-                  Tiếp theo
-                </button>
-              )}
+        <!-- Danh sách bài viết -->
+        <div id="posts-container" class="space-y-8">
+            <!-- Các bài viết sẽ được hiển thị tại đây -->
+            <div id="loading-spinner" class="text-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mx-auto"></div>
+                <p class="mt-2 text-gray-500">Đang tải bài viết...</p>
             </div>
-          )}
-          <div className="text-center text-sm text-gray-500 mt-4">
-            Câu hỏi: {currentQuestionIndex + 1} / {quizWords.length}
-          </div>
         </div>
-      </div>
-    );
-  };
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'login':
-        return renderAuthPage();
-      case 'home':
-        return renderHomePage();
-      case 'add-course':
-        return renderAddCoursePage();
-      case 'quiz':
-        return renderQuizPage();
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="font-sans text-gray-900 antialiased min-h-screen">
-      <style>
-        {`
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-          body { font-family: 'Inter', sans-serif; }
-        `}
-      </style>
-      {!isAuthReady ? (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 text-gray-600">
-          Đang tải...
-        </div>
-      ) : (
-        renderPage()
-      )}
     </div>
-  );
-};
 
-export default App;
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, serverTimestamp, orderBy, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
+        
+        let db;
+        let auth;
+        let userId;
+
+        // Initialize Firebase
+        function initializeFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                // Set up auth state listener
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        // User is signed in.
+                        userId = user.uid;
+                        document.getElementById('user-id-display').textContent = `ID của bạn: ${userId}`;
+                        console.log("User authenticated with ID:", userId);
+                        
+                        // Once authenticated, start listening for blog posts
+                        listenForPosts();
+
+                    } else {
+                        // User is signed out.
+                        console.log("No user is signed in. Attempting to sign in...");
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                            console.log("Signed in with custom token.");
+                        } else {
+                            await signInAnonymously(auth);
+                            console.log("Signed in anonymously.");
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Lỗi khi khởi tạo Firebase:", error);
+            }
+        }
+        
+        // Listen for real-time updates to the blog posts
+        function listenForPosts() {
+            if (!db || !userId) {
+                console.error("Firestore hoặc User ID chưa sẵn sàng.");
+                return;
+            }
+
+            const postsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/blog_posts`);
+            const q = query(postsCollectionRef, orderBy('createdAt', 'desc'));
+
+            // onSnapshot provides a real-time listener
+            onSnapshot(q, (snapshot) => {
+                const postsContainer = document.getElementById('posts-container');
+                postsContainer.innerHTML = ''; // Clear existing posts
+
+                if (snapshot.empty) {
+                    postsContainer.innerHTML = '<p class="text-center text-gray-500 italic">Chưa có bài viết nào. Hãy thêm bài viết đầu tiên của bạn!</p>';
+                    return;
+                }
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const docId = doc.id;
+                    const formattedDate = data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString('vi-VN') : 'Đang cập nhật...';
+
+                    const postCard = document.createElement('div');
+                    postCard.classList.add('bg-gray-50', 'rounded-lg', 'shadow-md', 'p-6');
+                    
+                    const cardContent = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-xl text-indigo-800">${data.title}</h3>
+                            <button class="delete-btn text-red-500 hover:text-red-700 transition-colors" data-id="${docId}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-4">Ngày đăng: ${formattedDate}</p>
+                        <div class="prose text-gray-600">${data.content.replace(/\n/g, '<br>')}</div>
+                    `;
+                    postCard.innerHTML = cardContent;
+                    postsContainer.appendChild(postCard);
+                });
+                
+                // Attach event listeners to delete buttons
+                document.querySelectorAll('.delete-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const docId = e.currentTarget.getAttribute('data-id');
+                        deletePost(docId);
+                    });
+                });
+            });
+        }
+
+        // Add a new blog post to Firestore
+        async function addPost(e) {
+            e.preventDefault();
+            
+            if (!db || !userId) {
+                console.error("Firestore hoặc User ID chưa sẵn sàng.");
+                return;
+            }
+
+            const title = document.getElementById('post-title').value.trim();
+            const content = document.getElementById('post-content').value.trim();
+
+            if (!title || !content) {
+                alert("Vui lòng điền đầy đủ tiêu đề và nội dung.");
+                return;
+            }
+
+            try {
+                const postsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/blog_posts`);
+                await addDoc(postsCollectionRef, {
+                    title: title,
+                    content: content,
+                    createdAt: serverTimestamp()
+                });
+                
+                document.getElementById('post-form').reset();
+                console.log("Đã đăng bài viết thành công!");
+
+            } catch (error) {
+                console.error("Lỗi khi thêm tài liệu: ", error);
+            }
+        }
+
+        // Delete a blog post from Firestore
+        async function deletePost(docId) {
+            if (!db || !userId) {
+                console.error("Firestore hoặc User ID chưa sẵn sàng.");
+                return;
+            }
+
+            try {
+                const docRef = doc(db, `artifacts/${appId}/users/${userId}/blog_posts`, docId);
+                await deleteDoc(docRef);
+                console.log("Đã xóa bài viết thành công!");
+            } catch (error) {
+                console.error("Lỗi khi xóa tài liệu: ", error);
+            }
+        }
+        
+        // Run the initialization
+        initializeFirebase();
+
+        // Attach form submit listener
+        document.getElementById('post-form').addEventListener('submit', addPost);
+
+    </script>
+</body>
+</html>
