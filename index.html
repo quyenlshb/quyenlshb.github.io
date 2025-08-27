@@ -1,509 +1,650 @@
 <!DOCTYPE html>
-<html lang="vi" class="dark">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Học tiếng Nhật N3 cá nhân hóa</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Sistem Lặp lại Ngắt Quãng - Học tiếng Nhật</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tone.js for audio -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            /* Thay đổi màu nền tổng thể */
+            background-color: #ffffff;
+            color: #2c3e50;
         }
-        .main-content {
-            padding-top: 6rem;
-            min-height: 100vh;
+        .page-container {
+            display: none;
         }
-        .dark .bg-gray-800 { background-color: #1f2937; }
-        .dark .bg-gray-900 { background-color: #111827; }
-        .dark .text-gray-200 { color: #e5e7eb; }
-        .dark .text-gray-400 { color: #9ca3af; }
-        .dark .border-gray-700 { border-color: #374151; }
-        .dark .hover\:bg-gray-700:hover { background-color: #374151; }
-        /* Custom scrollbar for better aesthetics */
-        ::-webkit-scrollbar {
-            width: 8px;
+        .page-container.active {
+            display: flex;
         }
-        ::-webkit-scrollbar-track {
-            background: transparent;
+        .button-primary {
+            @apply bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transition-all duration-300 hover:bg-blue-700 active:scale-95;
         }
-        ::-webkit-scrollbar-thumb {
-            background-color: #4b5563;
-            border-radius: 4px;
+        .button-secondary {
+            @apply bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-xl shadow-md transition-all duration-300 hover:bg-gray-300 active:scale-95;
         }
-        .dark ::-webkit-scrollbar-thumb {
-            background-color: #9ca3af;
+        .button-choice {
+            /* Tăng kích thước phông chữ và padding cho nút */
+            @apply w-full text-center py-8 px-4 m-2 rounded-xl text-2xl md:text-3xl font-medium transition-all duration-300 shadow-lg hover:scale-105;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .button-choice.correct {
+            @apply bg-green-500 text-white;
+        }
+        .button-choice.incorrect {
+            @apply bg-red-500 text-white;
+        }
+        .button-choice.default {
+            /* Thay đổi màu nền mặc định */
+            @apply bg-blue-600 text-white;
+        }
+        .modal {
+            @apply fixed top-0 left-0 w-full h-full flex items-center justify-center bg-gray-900 bg-opacity-50 z-50;
+        }
+        .modal-content {
+            @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center;
+        }
+        /* Style for the memory tip section */
+        #memory-tip-container {
+            background-color: #f0f4f8;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        /* Style cho các thẻ chính */
+        .card {
+            background-color: #f7f9fb;
+            border-radius: 1.5rem; /* Tăng độ bo tròn */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 2.5rem; /* Tăng padding */
+        }
+        .deck-item {
+            @apply p-6 border rounded-xl flex items-center justify-between transition-shadow duration-300 hover:shadow-lg;
+            background-color: #e2e8f0;
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-900 transition-colors duration-300">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75 transition-opacity duration-300">
-        <div class="flex flex-col items-center">
-            <svg class="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p class="mt-4 text-white text-lg font-semibold">Đang tải...</p>
+    <!-- Modal thông báo -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <p id="modal-text" class="text-xl mb-4"></p>
+            <button id="modal-close-btn" class="button-primary">Đóng</button>
         </div>
     </div>
 
-    <!-- Message Modal -->
-    <div id="message-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-gray-900 bg-opacity-75">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm">
-            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-200">Thông báo</h3>
-            <p id="modal-content" class="text-gray-700 dark:text-gray-400 mb-6"></p>
-            <button onclick="closeModal()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">OK</button>
+    <!-- Trang chủ -->
+    <div id="home-page" class="page-container active flex-col items-center justify-center w-full max-w-xl text-center">
+        <div class="card w-full">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-blue-600 mb-4">Học từ vựng cùng Quyền</h1>
+            <p class="text-lg md:text-xl text-gray-700 mb-8 leading-relaxed">
+                Nắm vững từ vựng với phương pháp lặp lại ngắt quãng (Spaced Repetition System).
+            </p>
+            <div class="space-y-4">
+                <button id="upload-deck-btn" class="button-primary w-full">Tải lên một bộ từ mới</button>
+            </div>
+
+            <div class="mt-8 text-left w-full">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Các bộ từ của bạn</h2>
+                <div id="decks-list-container" class="space-y-4">
+                    <!-- Danh sách các bộ từ sẽ được chèn vào đây -->
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Header -->
-    <header class="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 shadow-md">
-        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div class="flex items-center space-x-4">
-                <a href="#dashboard" class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Nihongo N3</a>
-                <span id="user-id-display" class="text-xs text-gray-500 dark:text-gray-400 p-1 bg-gray-200 dark:bg-gray-700 rounded-md truncate max-w-[150px] sm:max-w-none">ID người dùng: Đang tải...</span>
+    <!-- Trang học từ vựng -->
+    <div id="learning-page" class="page-container flex-col items-center justify-center w-full max-w-2xl text-center">
+        <div class="card w-full">
+            <div id="learning-content" class="flex flex-col items-center justify-center min-h-[400px]">
+                <!-- Nội dung câu hỏi và đáp án sẽ được chèn vào đây bằng JavaScript -->
+                <p id="learning-status" class="text-gray-500 text-sm mb-4"></p>
+                <h2 id="question-text" class="text-5xl md:text-7xl font-bold text-gray-900 mb-8 transition-opacity duration-500"></h2>
+                
+                <!-- Container cho các nút đáp án -->
+                <div id="answers-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                    <!-- Các nút đáp án sẽ được chèn vào đây -->
+                </div>
+
+                <!-- Container cho mục ghi nhớ (chỉ hiện khi trả lời sai) -->
+                <div id="memory-tip-container" class="hidden text-left w-full mt-8">
+                    <p class="text-xl font-bold text-red-600 mb-2">Đáp án đúng là:</p>
+                    <p id="correct-answer-text" class="text-2xl font-semibold mb-4"></p>
+                    <label for="mnemonic-input" class="block text-gray-700 font-bold mb-2">Cách ghi nhớ của bạn:</label>
+                    <textarea id="mnemonic-input" rows="3" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"></textarea>
+                    <button id="next-question-btn" class="button-primary w-full">Tiếp theo</button>
+                </div>
+
+                <div id="no-words-message" class="text-2xl font-semibold text-gray-500 my-8 hidden">
+                    Tuyệt vời! Bạn đã hoàn thành tất cả các từ cần ôn tập.
+                </div>
             </div>
-            <nav class="hidden md:flex space-x-6">
-                <a href="#dashboard" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold transition-colors duration-200">Tổng quan</a>
-                <a href="#vocabulary" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold transition-colors duration-200">Từ vựng</a>
-                <a href="#grammar" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold transition-colors duration-200">Ngữ pháp</a>
-                <a href="#quiz" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold transition-colors duration-200">Bài kiểm tra</a>
-            </nav>
-            <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
-                <svg id="sun-icon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"></path>
-                </svg>
-                <svg id="moon-icon" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-                </svg>
-            </button>
+            <button id="learning-back-btn" class="button-secondary mt-8">Quay lại trang chủ</button>
         </div>
-    </header>
+    </div>
 
-    <!-- Main Content -->
-    <main class="main-content container mx-auto p-4 transition-colors duration-300">
-
-        <!-- Dashboard Section -->
-        <section id="dashboard" class="active-section p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-200 mb-4">Chào mừng đến với Nihongo N3</h1>
-            <p class="text-gray-600 dark:text-gray-400 mb-6">Đây là ứng dụng cá nhân hóa giúp bạn học và ôn tập tiếng Nhật trình độ N3. Bạn có thể tự thêm và quản lý các bộ từ vựng và ngữ pháp của mình.</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <a href="#vocabulary" class="p-6 bg-indigo-500 rounded-lg shadow-md text-white hover:bg-indigo-600 transition-colors duration-200 transform hover:scale-105">
-                    <h2 class="text-xl font-bold mb-2">Bộ từ vựng</h2>
-                    <p class="text-sm">Thêm, xem và quản lý các bộ từ vựng cá nhân của bạn.</p>
-                </a>
-                <a href="#grammar" class="p-6 bg-green-500 rounded-lg shadow-md text-white hover:bg-green-600 transition-colors duration-200 transform hover:scale-105">
-                    <h2 class="text-xl font-bold mb-2">Điểm ngữ pháp</h2>
-                    <p class="text-sm">Tổ chức và ôn tập các điểm ngữ pháp N3 quan trọng.</p>
-                </a>
-                <a href="#quiz" class="p-6 bg-red-500 rounded-lg shadow-md text-white hover:bg-red-600 transition-colors duration-200 transform hover:scale-105">
-                    <h2 class="text-xl font-bold mb-2">Bài kiểm tra</h2>
-                    <p class="text-sm">Kiểm tra kiến thức của bạn với các bài kiểm tra tùy chỉnh.</p>
-                </a>
+    <!-- Trang xem từ vựng -->
+    <div id="view-deck-page" class="page-container flex-col items-center justify-start w-full max-w-2xl text-center">
+        <div class="card w-full">
+            <h2 id="view-deck-title" class="text-3xl md:text-4xl font-bold text-gray-800 mb-4"></h2>
+            <div class="overflow-x-auto w-full">
+                <table class="min-w-full table-auto text-left whitespace-no-wrap">
+                    <thead>
+                        <tr class="bg-gray-200">
+                            <th class="px-4 py-2 border-b-2 border-gray-300">Từ</th>
+                            <th class="px-4 py-2 border-b-2 border-gray-300">Nghĩa</th>
+                            <th class="px-4 py-2 border-b-2 border-gray-300">Cấp độ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="view-deck-table-body">
+                        <!-- Danh sách từ sẽ được chèn vào đây -->
+                    </tbody>
+                </table>
             </div>
-        </section>
-
-        <!-- Vocabulary Section -->
-        <section id="vocabulary" class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl hidden">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-200 mb-4">Quản lý Từ vựng</h1>
-            <div class="mb-6 p-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center">
-                <p class="text-gray-600 dark:text-gray-400 mb-2">Tải lên file văn bản (.txt) từ vựng của bạn. Mỗi dòng một từ, phân cách bằng '|'.</p>
-                <code class="block bg-gray-200 dark:bg-gray-700 text-sm p-2 rounded-md overflow-x-auto text-gray-800 dark:text-gray-200 whitespace-nowrap">Kanji|Cách đọc (Kana)|Nghĩa tiếng Việt|Câu ví dụ|Dịch câu ví dụ</code>
-                <label for="vocab-file-input" class="mt-4 inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition duration-200">
-                    <svg class="h-5 w-5 inline-block -mt-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                    Tải lên Bộ Từ Vựng mới
-                </label>
-                <input type="file" id="vocab-file-input" accept=".txt" class="hidden">
+            <div class="space-y-4 mt-8">
+                 <button id="start-learning-view-btn" class="button-primary w-full">Bắt đầu học bộ này</button>
+                <button id="view-back-btn" class="button-secondary w-full">Quay lại trang chủ</button>
             </div>
+        </div>
+    </div>
 
-            <div id="vocab-list">
-                <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-200">Các bộ từ vựng đã tải lên:</h2>
-                <!-- Dynamic content will be injected here -->
+    <!-- Trang tải lên bộ từ -->
+    <div id="upload-page" class="page-container flex-col items-center justify-center w-full max-w-xl text-center">
+        <div class="card w-full">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Tải lên bộ từ của bạn</h1>
+            <p class="text-md md:text-lg text-gray-600 mb-6 leading-relaxed">
+                Vui lòng chuẩn bị tệp CSV của bạn theo định dạng sau: <br> 
+                <code class="bg-gray-100 p-2 rounded-md block mt-2">Kanji/Kana,Nghĩa tiếng Việt,Cách đọc (tùy chọn)</code>
+            </p>
+            <div class="flex flex-col space-y-4 mb-4">
+                <input type="text" id="deck-name-input" placeholder="Nhập tên bộ từ (ví dụ: N5 Từ vựng)" class="w-full p-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="file" id="csv-file-input" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                <button id="upload-file-btn" class="button-primary w-full" disabled>Tải lên</button>
             </div>
-        </section>
+            <p id="upload-status" class="mt-4 text-sm"></p>
+            <button id="upload-back-btn" class="button-secondary w-full">Quay lại trang chủ</button>
+        </div>
+    </div>
 
-        <!-- Grammar Section -->
-        <section id="grammar" class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl hidden">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-200 mb-4">Quản lý Ngữ pháp</h1>
-            <div class="mb-6 p-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center">
-                <p class="text-gray-600 dark:text-gray-400 mb-2">Tải lên file văn bản (.txt) ngữ pháp của bạn. Mỗi dòng một điểm, phân cách bằng '|'.</p>
-                <code class="block bg-gray-200 dark:bg-gray-700 text-sm p-2 rounded-md overflow-x-auto text-gray-800 dark:text-gray-200 whitespace-nowrap">Tên ngữ pháp|Ý nghĩa/Cách dùng|Cấu trúc câu|Câu ví dụ 1|Dịch ví dụ 1|...</code>
-                <label for="grammar-file-input" class="mt-4 inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition duration-200">
-                    <svg class="h-5 w-5 inline-block -mt-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                    Tải lên Điểm Ngữ Pháp mới
-                </label>
-                <input type="file" id="grammar-file-input" accept=".txt" class="hidden">
-            </div>
-
-            <div id="grammar-list">
-                <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-200">Các bộ ngữ pháp đã tải lên:</h2>
-                <!-- Dynamic content will be injected here -->
-            </div>
-        </section>
-
-        <!-- Quiz Section -->
-        <section id="quiz" class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl hidden">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-200 mb-4">Bài Kiểm Tra</h1>
-            <div class="p-4 bg-gray-200 dark:bg-gray-700 rounded-lg text-center">
-                <p class="text-gray-800 dark:text-gray-200 text-lg font-medium">Chức năng này sẽ được xây dựng dựa trên dữ liệu bạn đã tải lên.</p>
-                <p class="text-gray-600 dark:text-gray-400 mt-2">Hãy bắt đầu bằng cách thêm các bộ từ vựng và ngữ pháp của bạn!</p>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Firebase Scripts -->
-    <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, onSnapshot, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-
-        // Global variables provided by the Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let app, db, auth, userId = null;
-
-        // UI Elements
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const messageModal = document.getElementById('message-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalContent = document.getElementById('modal-content');
-        const vocabFileInput = document.getElementById('vocab-file-input');
-        const grammarFileInput = document.getElementById('grammar-file-input');
-        const vocabList = document.getElementById('vocab-list');
-        const grammarList = document.getElementById('grammar-list');
-
-        // Show/hide functions for UI elements
-        const showLoading = () => loadingOverlay.classList.remove('hidden');
-        const hideLoading = () => loadingOverlay.classList.add('hidden');
-        const showModal = (title, content) => {
-            modalTitle.textContent = title;
-            modalContent.textContent = content;
-            messageModal.classList.remove('hidden');
-        };
-        window.closeModal = () => messageModal.classList.add('hidden');
-
-        // Navigation logic
-        const sections = document.querySelectorAll('section');
-        const navLinks = document.querySelectorAll('nav a');
-        const dashboardLinks = document.querySelectorAll('#dashboard a');
-        
-        const showSection = (id) => {
-            sections.forEach(section => {
-                if ('#' + section.id === id) {
-                    section.classList.remove('hidden');
-                    section.classList.add('active-section');
-                } else {
-                    section.classList.add('hidden');
-                    section.classList.remove('active-section');
-                }
-            });
-            window.location.hash = id;
+    <script>
+        // Định nghĩa bộ từ vựng mẫu
+        const initialDeck = {
+            name: "Bộ từ mẫu",
+            words: [
+                { kanji: "私", meaning: "Tôi", reading: "わたし" },
+                { kanji: "あなた", meaning: "Bạn", reading: "あなた" },
+                { kanji: "学生", meaning: "Học sinh, sinh viên", reading: "がくせい" },
+                { kanji: "先生", meaning: "Giáo viên", reading: "せんせい" },
+                { kanji: "日本", meaning: "Nhật Bản", reading: "にほん" },
+                { kanji: "日本語", meaning: "Tiếng Nhật", reading: "にほんご" },
+                { kanji: "食べる", meaning: "Ăn", reading: "たべる" },
+                { kanji: "飲む", meaning: "Uống", reading: "のむ" },
+                { kanji: "行く", meaning: "Đi", reading: "いく" },
+                { kanji: "来る", meaning: "Đến", reading: "くる" },
+                { kanji: "話す", meaning: "Nói", reading: "はなす" },
+                { kanji: "読む", meaning: "Đọc", reading: "よむ" },
+                { kanji: "書く", meaning: "Viết", reading: "かく" },
+                { kanji: "聞く", meaning: "Nghe", reading: "きく" },
+                { kanji: "見る", meaning: "Nhìn, xem", reading: "みる" },
+            ]
         };
 
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                showSection(e.target.getAttribute('href'));
-            });
-        });
+        // Mảng các khoảng thời gian ôn tập (theo ngày)
+        // Đây là một thuật toán lặp lại ngắt quãng đơn giản
+        const intervals = [0, 1, 3, 7, 15, 30, 90, 180, 365, Infinity];
 
-        dashboardLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                showSection(e.currentTarget.getAttribute('href'));
-            });
-        });
-
-        // Initialize Firebase and Authentication
-        const initFirebase = async () => {
-            showLoading();
-            try {
-                if (Object.keys(firebaseConfig).length === 0) {
-                    throw new Error("Firebase config not available. Please try again.");
-                }
-
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                // Use onAuthStateChanged to handle auth state and data fetching
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        userIdDisplay.textContent = `ID người dùng: ${userId}`;
-                        // Once user is authenticated, set up real-time listeners
-                        setupRealtimeListeners();
-                        hideLoading();
-                        // Handle navigation to initial section
-                        const hash = window.location.hash || '#dashboard';
-                        showSection(hash);
-                    } else {
-                        // User is signed out or not signed in yet
-                        console.log("No user signed in. Attempting to sign in...");
-                        // Use provided custom token or sign in anonymously
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Firebase Initialization or Auth Error:", error);
-                showModal("Lỗi", "Không thể kết nối đến máy chủ. Vui lòng thử lại.");
-                hideLoading();
+        // Khởi tạo các synth âm thanh
+        const correctSynth = new Tone.Synth({
+            oscillator: { type: "sine" },
+            envelope: {
+                attack: 0.005,
+                decay: 0.1,
+                sustain: 0.1,
+                release: 0.1
             }
-        };
+        }).toDestination();
+        const incorrectSynth = new Tone.Synth({
+            oscillator: { type: "sawtooth" },
+            envelope: {
+                attack: 0.005,
+                decay: 0.1,
+                sustain: 0.1,
+                release: 0.1
+            }
+        }).toDestination();
 
-        // Setup real-time listeners for Firestore data
-        const setupRealtimeListeners = () => {
-            if (!db || !userId) {
-                console.error("Firestore or userId is not available.");
+        // Lấy các phần tử DOM cần thiết
+        const homePage = document.getElementById('home-page');
+        const learningPage = document.getElementById('learning-page');
+        const uploadPage = document.getElementById('upload-page');
+        const viewDeckPage = document.getElementById('view-deck-page');
+        const uploadDeckBtn = document.getElementById('upload-deck-btn');
+        const learningBackBtn = document.getElementById('learning-back-btn');
+        const uploadBackBtn = document.getElementById('upload-back-btn');
+        const viewBackBtn = document.getElementById('view-back-btn');
+        const startLearningViewBtn = document.getElementById('start-learning-view-btn');
+        const csvFileInput = document.getElementById('csv-file-input');
+        const deckNameInput = document.getElementById('deck-name-input');
+        const uploadFileBtn = document.getElementById('upload-file-btn');
+        const uploadStatus = document.getElementById('upload-status');
+        const decksListContainer = document.getElementById('decks-list-container');
+        const questionText = document.getElementById('question-text');
+        const answersContainer = document.getElementById('answers-container');
+        const memoryTipContainer = document.getElementById('memory-tip-container');
+        const correctAnswerText = document.getElementById('correct-answer-text');
+        const mnemonicInput = document.getElementById('mnemonic-input');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+        const noWordsMessage = document.getElementById('no-words-message');
+        const learningStatus = document.getElementById('learning-status');
+        const viewDeckTitle = document.getElementById('view-deck-title');
+        const viewDeckTableBody = document.getElementById('view-deck-table-body');
+        const modal = document.getElementById('modal');
+        const modalText = document.getElementById('modal-text');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        let decks = [];
+        let isAnswerLocked = false;
+        let currentWord = null;
+        let currentDeckIndex = -1; // Index của bộ từ đang học
+
+        // --- Các hàm xử lý dữ liệu và logic ---
+
+        // Hiển thị modal thông báo
+        function showModal(message) {
+            modalText.textContent = message;
+            modal.classList.remove('hidden');
+        }
+
+        // Ẩn modal thông báo
+        modalCloseBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        // Hàm lưu dữ liệu vào localStorage
+        function saveData() {
+            localStorage.setItem('decks', JSON.stringify(decks));
+        }
+
+        // Hàm tải dữ liệu từ localStorage
+        function loadData() {
+            const savedData = localStorage.getItem('decks');
+            if (savedData) {
+                decks = JSON.parse(savedData);
+            } else {
+                // Khởi tạo bộ từ vựng demo lần đầu và lưu vào decks
+                const demoDeck = {
+                    name: "Bộ từ mẫu",
+                    words: initialDeck.words.map(word => ({
+                        ...word,
+                        level: 0,
+                        lastReviewed: new Date(0).toISOString(),
+                        correctStreak: 0,
+                        mnemonic: ""
+                    }))
+                };
+                decks = [demoDeck];
+                saveData();
+            }
+        }
+
+        // Chuyển đổi giữa các trang
+        function showPage(pageId) {
+            const pages = [homePage, learningPage, uploadPage, viewDeckPage];
+            pages.forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        // Cập nhật danh sách bộ từ trên trang chủ
+        function renderDecksList() {
+            decksListContainer.innerHTML = '';
+            if (decks.length === 0) {
+                decksListContainer.innerHTML = '<p class="text-gray-500">Chưa có bộ từ nào. Vui lòng tải lên.</p>';
+                return;
+            }
+            decks.forEach((deck, index) => {
+                const deckItem = document.createElement('div');
+                deckItem.classList.add('deck-item');
+                deckItem.innerHTML = `
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-800">${deck.name}</h3>
+                        <p class="text-sm text-gray-600">${deck.words.length} từ</p>
+                    </div>
+                    <div class="space-x-2">
+                        <button class="button-secondary text-sm px-3 py-1" data-action="view" data-index="${index}">Xem từ</button>
+                        <button class="button-primary text-sm px-3 py-1" data-action="learn" data-index="${index}">Học</button>
+                    </div>
+                `;
+                decksListContainer.appendChild(deckItem);
+            });
+        }
+        
+        // Chọn từ cần ôn tập
+        function getNextWordToLearn(deckWords) {
+            const now = new Date();
+            // Lọc ra các từ đã đến hạn ôn tập
+            const dueWords = deckWords.filter(word => {
+                const lastReviewedDate = new Date(word.lastReviewed);
+                const intervalInDays = intervals[word.level] || 0;
+                const dueDate = new Date(lastReviewedDate.getTime() + intervalInDays * 24 * 60 * 60 * 1000);
+                return dueDate <= now;
+            });
+
+            if (dueWords.length === 0) {
+                return null; // Không có từ nào cần ôn tập
+            }
+
+            // Sắp xếp các từ đã đến hạn theo mức độ ôn tập (level)
+            // Ưu tiên các từ có level thấp hơn
+            dueWords.sort((a, b) => a.level - b.level);
+            
+            // Trả về từ đầu tiên trong danh sách đã sắp xếp
+            return dueWords[0];
+        }
+        
+        // Cập nhật trạng thái của từ sau khi học
+        function updateWordStatus(word, isCorrect) {
+            if (isCorrect) {
+                word.level = Math.min(word.level + 1, intervals.length - 1);
+                word.correctStreak += 1; // Tăng số lần trả lời đúng liên tiếp
+            } else {
+                word.level = Math.max(0, word.level - 1); // Giảm level nếu trả lời sai
+                word.correctStreak = 0; // Đặt lại chuỗi đúng liên tiếp
+            }
+            word.lastReviewed = new Date().toISOString();
+            saveData();
+        }
+
+        // Tạo danh sách câu trả lời
+        function generateAnswers(correctWord, allWords) {
+            // Lọc ra 3 từ sai ngẫu nhiên, không trùng với từ đúng
+            const incorrectWords = [];
+            while (incorrectWords.length < 3) {
+                const randomIndex = Math.floor(Math.random() * allWords.length);
+                const randomWord = allWords[randomIndex];
+                if (randomWord.meaning !== correctWord.meaning) {
+                    if (!incorrectWords.some(w => w.meaning === randomWord.meaning)) {
+                         incorrectWords.push(randomWord);
+                    }
+                }
+            }
+
+            const answers = [correctWord, ...incorrectWords];
+            // Xáo trộn thứ tự các câu trả lời
+            for (let i = answers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [answers[i], answers[j]] = [answers[j], answers[i]];
+            }
+            return answers;
+        }
+
+        // Xử lý khi người dùng chọn đáp án
+        function handleAnswer(selectedWord, correctWord, buttonElement) {
+            if (isAnswerLocked) return;
+            isAnswerLocked = true;
+
+            const isCorrect = selectedWord.meaning === correctWord.meaning;
+            
+            if (isCorrect) {
+                correctSynth.triggerAttackRelease("C5", "8n"); // Phát âm thanh đúng
+            } else {
+                incorrectSynth.triggerAttackRelease("C2", "8n"); // Phát âm thanh sai
+            }
+
+            // Cập nhật giao diện
+            const answerButtons = answersContainer.querySelectorAll('.button-choice');
+            answerButtons.forEach(btn => {
+                btn.disabled = true;
+                if (btn.textContent === correctWord.meaning) {
+                    btn.classList.add('correct');
+                } else {
+                    // Thay đổi màu nút sai thành màu xám để dễ phân biệt
+                    btn.classList.add('bg-gray-300', 'text-gray-500', 'opacity-50');
+                    btn.classList.remove('bg-blue-600');
+                }
+            });
+            buttonElement.classList.remove('bg-blue-600');
+            buttonElement.classList.add(isCorrect ? 'correct' : 'incorrect');
+            
+            // Cập nhật trạng thái từ trong data
+            updateWordStatus(correctWord, isCorrect);
+            
+            if (isCorrect) {
+                 // Nếu đúng, chuyển ngay sang câu hỏi tiếp theo sau một chút
+                 setTimeout(() => {
+                    isAnswerLocked = false;
+                    renderLearningPage(currentDeckIndex);
+                }, 1000);
+            } else {
+                // Nếu sai, hiển thị mẹo ghi nhớ
+                setTimeout(() => {
+                    showMemoryTip(correctWord);
+                    isAnswerLocked = false;
+                }, 1000);
+            }
+        }
+
+        // Hiển thị trang học
+        function renderLearningPage(deckIndex) {
+            showPage('learning-page');
+            currentDeckIndex = deckIndex;
+            
+            const deck = decks[currentDeckIndex];
+            if (!deck) {
+                showModal("Không tìm thấy bộ từ này.");
                 return;
             }
 
-            // Listen for changes to vocabulary sets
-            const vocabColRef = collection(db, `artifacts/${appId}/users/${userId}/vocabulary_sets`);
-            onSnapshot(vocabColRef, (snapshot) => {
-                const sets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderVocabSets(sets);
-            }, (error) => {
-                console.error("Error fetching vocab data:", error);
-                showModal("Lỗi", "Không thể tải dữ liệu từ vựng.");
-            });
+            currentWord = getNextWordToLearn(deck.words);
 
-            // Listen for changes to grammar sets
-            const grammarColRef = collection(db, `artifacts/${appId}/users/${userId}/grammar_sets`);
-            onSnapshot(grammarColRef, (snapshot) => {
-                const sets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderGrammarSets(sets);
-            }, (error) => {
-                console.error("Error fetching grammar data:", error);
-                showModal("Lỗi", "Không thể tải dữ liệu ngữ pháp.");
-            });
-        };
+            if (!currentWord) {
+                noWordsMessage.classList.remove('hidden');
+                answersContainer.innerHTML = '';
+                questionText.textContent = '';
+                learningStatus.textContent = '';
+                return;
+            }
+            
+            // Ẩn mục ghi nhớ và hiển thị các nút đáp án
+            memoryTipContainer.classList.add('hidden');
+            answersContainer.classList.remove('hidden');
 
-        // File handling logic
-        const handleFileChange = (event, type) => {
+            noWordsMessage.classList.add('hidden');
+            const answers = generateAnswers(currentWord, deck.words);
+            
+            // Hiển thị từ và câu hỏi
+            questionText.textContent = currentWord.kanji;
+            questionText.classList.remove('opacity-0');
+            
+            // Cập nhật trạng thái
+            const totalWords = deck.words.length;
+            const learnedWords = deck.words.filter(w => w.level > 0).length;
+            learningStatus.textContent = `Bộ từ: ${deck.name} | Đã học: ${learnedWords}/${totalWords} | Chuỗi đúng: ${currentWord.correctStreak}`;
+
+            // Hiển thị các nút đáp án
+            answersContainer.innerHTML = '';
+            answers.forEach(answer => {
+                const button = document.createElement('button');
+                button.textContent = answer.meaning;
+                button.classList.add('button-choice', 'default');
+                button.addEventListener('click', () => handleAnswer(answer, currentWord, button));
+                answersContainer.appendChild(button);
+            });
+        }
+
+        // Hiển thị trang xem từ
+        function renderViewDeckPage(deckIndex) {
+            showPage('view-deck-page');
+            currentDeckIndex = deckIndex;
+
+            const deck = decks[currentDeckIndex];
+            if (!deck) {
+                 showModal("Không tìm thấy bộ từ này.");
+                 return;
+            }
+
+            viewDeckTitle.textContent = deck.name;
+            viewDeckTableBody.innerHTML = '';
+            
+            if (deck.words.length === 0) {
+                 viewDeckTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-500">Bộ từ này trống.</td></tr>';
+            }
+
+            deck.words.forEach(word => {
+                const row = document.createElement('tr');
+                row.classList.add('border-b', 'border-gray-200');
+                row.innerHTML = `
+                    <td class="px-4 py-2">${word.kanji} (${word.reading})</td>
+                    <td class="px-4 py-2">${word.meaning}</td>
+                    <td class="px-4 py-2">${word.level}</td>
+                `;
+                viewDeckTableBody.appendChild(row);
+            });
+        }
+        
+        // Hiển thị mục ghi nhớ khi trả lời sai
+        function showMemoryTip(correctWord) {
+            answersContainer.classList.add('hidden');
+            memoryTipContainer.classList.remove('hidden');
+            correctAnswerText.innerHTML = `${correctWord.kanji} (${correctWord.reading}) - <span class="text-gray-800 font-normal">${correctWord.meaning}</span>`;
+            // Hiển thị mẹo ghi nhớ đã lưu (nếu có)
+            mnemonicInput.value = correctWord.mnemonic || '';
+        }
+        
+        // Xử lý khi người dùng nhấn "Tiếp theo"
+        function handleNextQuestion() {
+            if (currentWord) {
+                // Cập nhật mẹo ghi nhớ của người dùng
+                currentWord.mnemonic = mnemonicInput.value.trim();
+                saveData();
+            }
+            renderLearningPage(currentDeckIndex);
+        }
+
+        // Xử lý tệp tải lên
+        function handleFileUpload(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            const deckName = deckNameInput.value.trim();
+            if (!file || deckName === '') {
+                uploadStatus.textContent = 'Vui lòng nhập tên bộ từ và chọn tệp.';
+                uploadFileBtn.disabled = true;
+                return;
+            }
+            uploadStatus.textContent = '';
+            uploadFileBtn.disabled = false;
+        }
 
-            showLoading();
+        function processFile() {
+            const file = csvFileInput.files[0];
+            const deckName = deckNameInput.value.trim();
+            if (!file || deckName === '') {
+                showModal("Vui lòng nhập tên bộ từ và chọn một tệp CSV.");
+                return;
+            }
+
             const reader = new FileReader();
-            reader.onload = async (e) => {
+            reader.onload = (e) => {
                 try {
                     const content = e.target.result;
-                    let parsedData;
-                    if (type === 'vocab') {
-                        parsedData = parseVocabFile(content);
-                        if (parsedData.length > 0) {
-                            await uploadData('vocabulary_sets', { items: parsedData });
+                    const lines = content.split('\n').filter(line => line.trim() !== '');
+                    const newWords = [];
+                    for (const line of lines) {
+                        const parts = line.split(',');
+                        if (parts.length < 2) {
+                            showModal("Lỗi: Dòng không đúng định dạng. Vui lòng kiểm tra lại tệp.");
+                            return;
                         }
-                    } else if (type === 'grammar') {
-                        parsedData = parseGrammarFile(content);
-                        if (parsedData.length > 0) {
-                            await uploadData('grammar_sets', { items: parsedData });
-                        }
+                        const word = {
+                            kanji: parts[0].trim(),
+                            meaning: parts[1].trim(),
+                            reading: parts[2] ? parts[2].trim() : '',
+                            level: 0,
+                            lastReviewed: new Date(0).toISOString(),
+                            correctStreak: 0, // Thêm thuộc tính correctStreak khi tải lên
+                            mnemonic: "" // Thêm thuộc tính mnemonic
+                        };
+                        newWords.push(word);
                     }
-                    showModal("Thành công", `Đã tải lên ${parsedData.length} mục mới.`);
+                    if (newWords.length > 0) {
+                        const newDeck = {
+                            name: deckName,
+                            words: newWords
+                        };
+                        decks.push(newDeck);
+                        saveData();
+                        showModal(`Tải lên thành công! Đã thêm bộ từ "${deckName}" với ${newWords.length} từ.`);
+                        showPage('home-page');
+                        renderDecksList();
+                    } else {
+                        showModal("Tệp không có dữ liệu nào.");
+                    }
                 } catch (error) {
-                    console.error("Lỗi xử lý file:", error);
-                    showModal("Lỗi", `Đã xảy ra lỗi khi xử lý file: ${error.message}`);
-                } finally {
-                    hideLoading();
+                    showModal("Lỗi trong quá trình xử lý tệp. Vui lòng kiểm tra lại định dạng.");
                 }
             };
             reader.readAsText(file);
-        };
+        }
 
-        // Data parsing functions
-        const parseVocabFile = (content) => {
-            const lines = content.split('\n').filter(line => line.trim() !== '');
-            return lines.map(line => {
-                const parts = line.split('|').map(p => p.trim());
-                if (parts.length < 5) {
-                    throw new Error(`Định dạng dòng không hợp lệ: "${line}". Cần ít nhất 5 trường.`);
-                }
-                return {
-                    kanji: parts[0] || '',
-                    kana: parts[1] || '',
-                    meaning: parts[2] || '',
-                    example: parts[3] || '',
-                    translation: parts[4] || ''
-                };
-            });
-        };
+        // --- Thiết lập sự kiện ---
+        uploadDeckBtn.addEventListener('click', () => {
+            showPage('upload-page');
+            uploadStatus.textContent = '';
+            uploadFileBtn.disabled = true;
+            csvFileInput.value = '';
+            deckNameInput.value = '';
+        });
 
-        const parseGrammarFile = (content) => {
-            const lines = content.split('\n').filter(line => line.trim() !== '');
-            return lines.map(line => {
-                const parts = line.split('|').map(p => p.trim());
-                if (parts.length < 3) {
-                    throw new Error(`Định dạng dòng không hợp lệ: "${line}". Cần ít nhất 3 trường.`);
-                }
-                const examples = [];
-                for (let i = 3; i < parts.length; i += 2) {
-                    if (parts[i] && parts[i + 1]) {
-                        examples.push({ example: parts[i], translation: parts[i + 1] });
-                    }
-                }
-                return {
-                    name: parts[0] || '',
-                    meaning: parts[1] || '',
-                    structure: parts[2] || '',
-                    examples: examples
-                };
-            });
-        };
+        learningBackBtn.addEventListener('click', () => {
+            showPage('home-page');
+            renderDecksList();
+        });
 
-        // Firestore data handling
-        const uploadData = async (collectionName, data) => {
-            if (!db || !userId) {
-                showModal("Lỗi", "Chưa xác thực người dùng. Vui lòng thử lại.");
-                return;
-            }
-            try {
-                const colRef = collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
-                await addDoc(colRef, {
-                    name: `Bộ mới - ${new Date().toLocaleString('vi-VN')}`,
-                    createdAt: new Date(),
-                    items: data.items,
-                });
-            } catch (error) {
-                console.error("Lỗi khi tải dữ liệu lên Firestore:", error);
-                throw new Error("Lỗi khi lưu dữ liệu. Vui lòng kiểm tra kết nối mạng.");
-            }
-        };
+        uploadBackBtn.addEventListener('click', () => {
+            showPage('home-page');
+            renderDecksList();
+        });
+        
+        viewBackBtn.addEventListener('click', () => {
+            showPage('home-page');
+            renderDecksList();
+        });
 
-        // Render functions for UI
-        const renderVocabSets = (sets) => {
-            vocabList.innerHTML = `<h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-200">Các bộ từ vựng đã tải lên:</h2>`;
-            if (sets.length === 0) {
-                vocabList.innerHTML += `<p class="text-gray-500 dark:text-gray-400">Chưa có bộ từ vựng nào. Hãy tải lên bộ đầu tiên!</p>`;
-                return;
-            }
-            sets.forEach(set => {
-                const setName = set.name;
-                const setSize = set.items.length;
-                const vocabCard = document.createElement('div');
-                vocabCard.className = 'p-4 my-2 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-200';
-                vocabCard.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-200 truncate">${setName} (${setSize} từ)</h3>
-                        <div class="flex items-center space-x-2">
-                            <button class="delete-btn text-red-500 hover:text-red-700 transition" data-id="${set.id}" data-type="vocab">
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-7 7-7-7"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                vocabList.appendChild(vocabCard);
-            });
-        };
-
-        const renderGrammarSets = (sets) => {
-            grammarList.innerHTML = `<h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-200">Các bộ ngữ pháp đã tải lên:</h2>`;
-            if (sets.length === 0) {
-                grammarList.innerHTML += `<p class="text-gray-500 dark:text-gray-400">Chưa có bộ ngữ pháp nào. Hãy tải lên bộ đầu tiên!</p>`;
-                return;
-            }
-            sets.forEach(set => {
-                const setName = set.name;
-                const setSize = set.items.length;
-                const grammarCard = document.createElement('div');
-                grammarCard.className = 'p-4 my-2 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-200';
-                grammarCard.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-200 truncate">${setName} (${setSize} điểm)</h3>
-                        <div class="flex items-center space-x-2">
-                            <button class="delete-btn text-red-500 hover:text-red-700 transition" data-id="${set.id}" data-type="grammar">
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-7 7-7-7"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                grammarList.appendChild(grammarCard);
-            });
-        };
-
-        // Event listeners
-        vocabFileInput.addEventListener('change', (e) => handleFileChange(e, 'vocab'));
-        grammarFileInput.addEventListener('change', (e) => handleFileChange(e, 'grammar'));
-
-        // Delete functionality
-        document.addEventListener('click', async (e) => {
-            if (e.target.closest('.delete-btn')) {
-                const button = e.target.closest('.delete-btn');
-                const id = button.dataset.id;
-                const type = button.dataset.type;
-                const collectionName = type === 'vocab' ? 'vocabulary_sets' : 'grammar_sets';
-                
-                const confirmed = window.confirm('Bạn có chắc chắn muốn xóa bộ này không?');
-                if (!confirmed) return;
-
-                showLoading();
-                try {
-                    if (!db || !userId) {
-                        showModal("Lỗi", "Chưa xác thực người dùng. Vui lòng thử lại.");
-                        return;
-                    }
-                    const docRef = doc(db, `artifacts/${appId}/users/${userId}/${collectionName}`, id);
-                    await deleteDoc(docRef);
-                    showModal("Thành công", "Đã xóa bộ dữ liệu.");
-                } catch (error) {
-                    console.error("Lỗi khi xóa tài liệu:", error);
-                    showModal("Lỗi", "Không thể xóa dữ liệu.");
-                } finally {
-                    hideLoading();
+        // Xử lý các nút Học và Xem từ trong danh sách
+        decksListContainer.addEventListener('click', (event) => {
+            const button = event.target.closest('button');
+            if (button) {
+                const action = button.dataset.action;
+                const index = parseInt(button.dataset.index);
+                if (action === 'learn') {
+                    renderLearningPage(index);
+                } else if (action === 'view') {
+                    renderViewDeckPage(index);
                 }
             }
         });
-
-
-        // Theme toggle logic
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const sunIcon = document.getElementById('sun-icon');
-        const moonIcon = document.getElementById('moon-icon');
-
-        themeToggleBtn.addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
-            if (document.documentElement.classList.contains('dark')) {
-                localStorage.setItem('theme', 'dark');
-                sunIcon.classList.add('hidden');
-                moonIcon.classList.remove('hidden');
-            } else {
-                localStorage.setItem('theme', 'light');
-                sunIcon.classList.remove('hidden');
-                moonIcon.classList.add('hidden');
-            }
+        
+        startLearningViewBtn.addEventListener('click', () => {
+            renderLearningPage(currentDeckIndex);
         });
 
-        // Set initial theme from localStorage
-        const setInitialTheme = () => {
-            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-                sunIcon.classList.add('hidden');
-                moonIcon.classList.remove('hidden');
-            } else {
-                document.documentElement.classList.remove('dark');
-                sunIcon.classList.remove('hidden');
-                moonIcon.classList.add('hidden');
-            }
-        };
+        csvFileInput.addEventListener('change', handleFileUpload);
+        deckNameInput.addEventListener('input', handleFileUpload); // Thêm sự kiện input để kiểm tra tên bộ từ
+        uploadFileBtn.addEventListener('click', processFile);
+        
+        nextQuestionBtn.addEventListener('click', handleNextQuestion);
 
-        window.onload = () => {
-            setInitialTheme();
-            initFirebase();
-        };
-
+        // --- Khởi tạo ứng dụng ---
+        loadData();
+        renderDecksList();
+        showPage('home-page');
     </script>
 </body>
 </html>
