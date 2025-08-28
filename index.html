@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Lặp lại Ngắt Quãng - Học tiếng Nhật</title>
+    <title>Sistem Lặp lại Ngắt Quãng - Học tiếng Nhật Online</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
     <!-- Tone.js for audio -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            /* Thay đổi màu nền tổng thể */
-            background-color: #ffffff;
+            background-color: #f0f4f8;
             color: #2c3e50;
         }
         .page-container {
@@ -30,7 +33,6 @@
             @apply bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-xl shadow-md transition-all duration-300 hover:bg-gray-300 active:scale-95;
         }
         .button-choice {
-            /* Tăng kích thước phông chữ và padding cho nút */
             @apply w-full text-center py-8 px-4 m-2 rounded-xl text-2xl md:text-3xl font-medium transition-all duration-300 shadow-lg hover:scale-105;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
         }
@@ -41,7 +43,6 @@
             @apply bg-red-500 text-white;
         }
         .button-choice.default {
-            /* Thay đổi màu nền mặc định */
             @apply bg-blue-600 text-white;
         }
         .modal {
@@ -50,27 +51,33 @@
         .modal-content {
             @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center;
         }
-        /* Style for the memory tip section */
         #memory-tip-container {
             background-color: #f0f4f8;
             border-radius: 12px;
             padding: 1.5rem;
             margin-top: 1rem;
         }
-        /* Style cho các thẻ chính */
         .card {
-            background-color: #f7f9fb;
-            border-radius: 1.5rem; /* Tăng độ bo tròn */
+            background-color: #ffffff;
+            border-radius: 1.5rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            padding: 2.5rem; /* Tăng padding */
+            padding: 2.5rem;
         }
         .deck-item {
             @apply p-6 border rounded-xl flex items-center justify-between transition-shadow duration-300 hover:shadow-lg;
             background-color: #e2e8f0;
         }
+        .loading-overlay {
+            @apply fixed top-0 left-0 w-full h-full flex items-center justify-center bg-gray-900 bg-opacity-50 z-50 text-white text-xl font-semibold;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        Đang tải...
+    </div>
 
     <!-- Modal thông báo -->
     <div id="modal" class="modal hidden">
@@ -84,6 +91,7 @@
     <div id="home-page" class="page-container active flex-col items-center justify-center w-full max-w-xl text-center">
         <div class="card w-full">
             <h1 class="text-4xl md:text-5xl font-extrabold text-blue-600 mb-4">Học từ vựng cùng Quyền</h1>
+            <p class="text-sm text-gray-500 mb-2">ID người dùng: <span id="user-id-display"></span></p>
             <p class="text-lg md:text-xl text-gray-700 mb-8 leading-relaxed">
                 Nắm vững từ vựng với phương pháp lặp lại ngắt quãng (Spaced Repetition System).
             </p>
@@ -100,11 +108,10 @@
         </div>
     </div>
 
-    <!-- Trang học từ vựng -->
+    <!-- Trang học/ôn tập từ vựng -->
     <div id="learning-page" class="page-container flex-col items-center justify-center w-full max-w-2xl text-center">
         <div class="card w-full">
             <div id="learning-content" class="flex flex-col items-center justify-center min-h-[400px]">
-                <!-- Nội dung câu hỏi và đáp án sẽ được chèn vào đây bằng JavaScript -->
                 <p id="learning-status" class="text-gray-500 text-sm mb-4"></p>
                 <h2 id="question-text" class="text-5xl md:text-7xl font-bold text-gray-900 mb-8 transition-opacity duration-500"></h2>
                 
@@ -123,8 +130,11 @@
                 </div>
 
                 <div id="no-words-message" class="text-2xl font-semibold text-gray-500 my-8 hidden">
-                    Tuyệt vời! Bạn đã hoàn thành tất cả các từ cần ôn tập.
+                    <!-- Nội dung thông báo tùy theo chế độ (học/ôn tập) -->
                 </div>
+                
+                <!-- Nút mới để học lại từ đầu -->
+                <button id="reset-deck-btn" class="button-secondary hidden mt-4">Học lại từ đầu</button>
             </div>
             <button id="learning-back-btn" class="button-secondary mt-8">Quay lại trang chủ</button>
         </div>
@@ -173,7 +183,11 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
         // Định nghĩa bộ từ vựng mẫu
         const initialDeck = {
             name: "Bộ từ mẫu",
@@ -197,7 +211,6 @@
         };
 
         // Mảng các khoảng thời gian ôn tập (theo ngày)
-        // Đây là một thuật toán lặp lại ngắt quãng đơn giản
         const intervals = [0, 1, 3, 7, 15, 30, 90, 180, 365, Infinity];
 
         // Khởi tạo các synth âm thanh
@@ -248,13 +261,166 @@
         const modal = document.getElementById('modal');
         const modalText = document.getElementById('modal-text');
         const modalCloseBtn = document.getElementById('modal-close-btn');
+        const resetDeckBtn = document.getElementById('reset-deck-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const userIdDisplay = document.getElementById('user-id-display');
 
         let decks = [];
         let isAnswerLocked = false;
         let currentWord = null;
-        let currentDeckIndex = -1; // Index của bộ từ đang học
+        let currentDeckId = null; // ID của bộ từ đang học
+        let currentSessionWords = [];
+        let sessionType = '';
+        let db, auth, userId;
 
-        // --- Các hàm xử lý dữ liệu và logic ---
+        // --- Firebase Initialization and Auth ---
+        
+        // Use provided global variables for Firebase configuration
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Display loading overlay while authenticating
+        showLoading(true);
+
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // Listen for authentication state changes
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is signed in.
+                userId = user.uid;
+                userIdDisplay.textContent = userId;
+                // Once authenticated, start listening for data changes
+                listenForDecks();
+                showLoading(false);
+            } else {
+                // User is signed out, sign in with the custom token or anonymously
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Firebase Auth Error:", error);
+                    showModal("Không thể đăng nhập. Vui lòng thử lại sau.");
+                    showLoading(false);
+                }
+            }
+        });
+
+        // --- Data handling with Firestore ---
+        function getDecksCollectionRef() {
+            return collection(db, `artifacts/${appId}/users/${userId}/decks`);
+        }
+        
+        // Listen for real-time changes to the decks
+        function listenForDecks() {
+            if (!db || !userId) return;
+            const decksRef = getDecksCollectionRef();
+            onSnapshot(decksRef, (querySnapshot) => {
+                decks = [];
+                querySnapshot.forEach((doc) => {
+                    const deckData = doc.data();
+                    decks.push({
+                        id: doc.id,
+                        name: deckData.name,
+                        words: deckData.words || []
+                    });
+                });
+                renderDecksList();
+                
+                // If no decks exist, automatically add the demo deck
+                if (decks.length === 0) {
+                    initializeDemoDeck();
+                }
+            }, (error) => {
+                console.error("Error listening to decks:", error);
+                showModal("Lỗi: Không thể tải danh sách bộ từ. Vui lòng kiểm tra kết nối.");
+            });
+        }
+        
+        // Function to initialize the demo deck if no decks exist
+        async function initializeDemoDeck() {
+            // Add words with initial SRS properties
+            const demoWords = initialDeck.words.map(word => ({
+                ...word,
+                level: 0,
+                lastReviewed: new Date(0).toISOString(),
+                correctStreak: 0,
+                mnemonic: ""
+            }));
+
+            const demoDeck = {
+                name: initialDeck.name,
+                words: demoWords
+            };
+
+            try {
+                await saveDeck(demoDeck);
+                console.log("Demo deck initialized successfully.");
+            } catch (error) {
+                console.error("Error initializing demo deck:", error);
+            }
+        }
+
+        // Save a single deck to Firestore
+        async function saveDeck(deck) {
+            try {
+                // Use the existing deck ID or generate a new one
+                const deckRef = deck.id ? doc(getDecksCollectionRef(), deck.id) : doc(getDecksCollectionRef());
+                await setDoc(deckRef, {
+                    name: deck.name,
+                    // Firestore cannot store an empty array on first write
+                    words: deck.words || [] 
+                });
+                return deckRef.id;
+            } catch (error) {
+                console.error("Error saving deck:", error);
+                showModal("Lỗi: Không thể lưu bộ từ. Vui lòng thử lại.");
+                return null;
+            }
+        }
+
+        // Update a word's status in a deck
+        async function updateWordStatus(deckId, wordToUpdate, isCorrect) {
+            try {
+                const deck = decks.find(d => d.id === deckId);
+                if (!deck) throw new Error("Deck not found");
+                
+                // Find the index of the word to update in the deck's words array
+                const wordIndex = deck.words.findIndex(w => w.kanji === wordToUpdate.kanji && w.meaning === wordToUpdate.meaning);
+                if (wordIndex === -1) throw new Error("Word not found");
+                
+                const word = deck.words[wordIndex];
+
+                if (isCorrect) {
+                    word.level = Math.min(word.level + 1, intervals.length - 1);
+                    word.correctStreak += 1;
+                } else {
+                    word.level = Math.max(0, word.level - 1);
+                    word.correctStreak = 0;
+                }
+                word.lastReviewed = new Date().toISOString();
+
+                // Update the entire deck document in Firestore
+                const deckRef = doc(getDecksCollectionRef(), deckId);
+                await setDoc(deckRef, { words: deck.words }, { merge: true });
+            } catch (error) {
+                console.error("Error updating word status:", error);
+                showModal("Lỗi: Không thể cập nhật tiến độ.");
+            }
+        }
+        
+        // --- UI and Logic Functions ---
+        
+        // Show/hide loading overlay
+        function showLoading(show) {
+            loadingOverlay.classList.toggle('hidden', !show);
+        }
 
         // Hiển thị modal thông báo
         function showModal(message) {
@@ -266,33 +432,6 @@
         modalCloseBtn.addEventListener('click', () => {
             modal.classList.add('hidden');
         });
-
-        // Hàm lưu dữ liệu vào localStorage
-        function saveData() {
-            localStorage.setItem('decks', JSON.stringify(decks));
-        }
-
-        // Hàm tải dữ liệu từ localStorage
-        function loadData() {
-            const savedData = localStorage.getItem('decks');
-            if (savedData) {
-                decks = JSON.parse(savedData);
-            } else {
-                // Khởi tạo bộ từ vựng demo lần đầu và lưu vào decks
-                const demoDeck = {
-                    name: "Bộ từ mẫu",
-                    words: initialDeck.words.map(word => ({
-                        ...word,
-                        level: 0,
-                        lastReviewed: new Date(0).toISOString(),
-                        correctStreak: 0,
-                        mnemonic: ""
-                    }))
-                };
-                decks = [demoDeck];
-                saveData();
-            }
-        }
 
         // Chuyển đổi giữa các trang
         function showPage(pageId) {
@@ -311,61 +450,49 @@
                 return;
             }
             decks.forEach((deck, index) => {
+                const dueWordsCount = getWordsToReview(deck.words).length;
+                const newWordsCount = getNewWordsToLearn(deck.words).length;
+                
                 const deckItem = document.createElement('div');
                 deckItem.classList.add('deck-item');
                 deckItem.innerHTML = `
-                    <div>
+                    <div class="flex-grow">
                         <h3 class="text-xl font-semibold text-gray-800">${deck.name}</h3>
                         <p class="text-sm text-gray-600">${deck.words.length} từ</p>
                     </div>
-                    <div class="space-x-2">
-                        <button class="button-secondary text-sm px-3 py-1" data-action="view" data-index="${index}">Xem từ</button>
-                        <button class="button-primary text-sm px-3 py-1" data-action="learn" data-index="${index}">Học</button>
+                    <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
+                        <button class="button-primary text-sm px-3 py-1" data-action="learn-new" data-deck-id="${deck.id}">
+                            Học từ mới (${newWordsCount})
+                        </button>
+                        <button class="button-secondary text-sm px-3 py-1" data-action="review" data-deck-id="${deck.id}">
+                            Ôn tập (${dueWordsCount})
+                        </button>
+                        <button class="button-secondary text-sm px-3 py-1" data-action="view" data-deck-id="${deck.id}">Xem từ</button>
                     </div>
                 `;
                 decksListContainer.appendChild(deckItem);
             });
         }
         
-        // Chọn từ cần ôn tập
-        function getNextWordToLearn(deckWords) {
+        // Lấy danh sách từ mới (level 0)
+        function getNewWordsToLearn(deckWords) {
+            return deckWords.filter(word => word.level === 0);
+        }
+
+        // Lấy danh sách từ đã đến hạn ôn tập
+        function getWordsToReview(deckWords) {
             const now = new Date();
-            // Lọc ra các từ đã đến hạn ôn tập
-            const dueWords = deckWords.filter(word => {
+            return deckWords.filter(word => {
+                if (word.level === 0) return false;
                 const lastReviewedDate = new Date(word.lastReviewed);
                 const intervalInDays = intervals[word.level] || 0;
                 const dueDate = new Date(lastReviewedDate.getTime() + intervalInDays * 24 * 60 * 60 * 1000);
                 return dueDate <= now;
-            });
-
-            if (dueWords.length === 0) {
-                return null; // Không có từ nào cần ôn tập
-            }
-
-            // Sắp xếp các từ đã đến hạn theo mức độ ôn tập (level)
-            // Ưu tiên các từ có level thấp hơn
-            dueWords.sort((a, b) => a.level - b.level);
-            
-            // Trả về từ đầu tiên trong danh sách đã sắp xếp
-            return dueWords[0];
-        }
-        
-        // Cập nhật trạng thái của từ sau khi học
-        function updateWordStatus(word, isCorrect) {
-            if (isCorrect) {
-                word.level = Math.min(word.level + 1, intervals.length - 1);
-                word.correctStreak += 1; // Tăng số lần trả lời đúng liên tiếp
-            } else {
-                word.level = Math.max(0, word.level - 1); // Giảm level nếu trả lời sai
-                word.correctStreak = 0; // Đặt lại chuỗi đúng liên tiếp
-            }
-            word.lastReviewed = new Date().toISOString();
-            saveData();
+            }).sort((a, b) => a.level - b.level);
         }
 
         // Tạo danh sách câu trả lời
         function generateAnswers(correctWord, allWords) {
-            // Lọc ra 3 từ sai ngẫu nhiên, không trùng với từ đúng
             const incorrectWords = [];
             while (incorrectWords.length < 3) {
                 const randomIndex = Math.floor(Math.random() * allWords.length);
@@ -376,9 +503,7 @@
                     }
                 }
             }
-
             const answers = [correctWord, ...incorrectWords];
-            // Xáo trộn thứ tự các câu trả lời
             for (let i = answers.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [answers[i], answers[j]] = [answers[j], answers[i]];
@@ -387,105 +512,153 @@
         }
 
         // Xử lý khi người dùng chọn đáp án
-        function handleAnswer(selectedWord, correctWord, buttonElement) {
+        function handleAnswer(selectedWord, correctWord, deck) {
             if (isAnswerLocked) return;
             isAnswerLocked = true;
-
             const isCorrect = selectedWord.meaning === correctWord.meaning;
             
             if (isCorrect) {
-                correctSynth.triggerAttackRelease("C5", "8n"); // Phát âm thanh đúng
+                correctSynth.triggerAttackRelease("C5", "8n");
             } else {
-                incorrectSynth.triggerAttackRelease("C2", "8n"); // Phát âm thanh sai
+                incorrectSynth.triggerAttackRelease("C2", "8n");
             }
-
-            // Cập nhật giao diện
+            
             const answerButtons = answersContainer.querySelectorAll('.button-choice');
             answerButtons.forEach(btn => {
                 btn.disabled = true;
                 if (btn.textContent === correctWord.meaning) {
                     btn.classList.add('correct');
                 } else {
-                    // Thay đổi màu nút sai thành màu xám để dễ phân biệt
                     btn.classList.add('bg-gray-300', 'text-gray-500', 'opacity-50');
                     btn.classList.remove('bg-blue-600');
                 }
             });
-            buttonElement.classList.remove('bg-blue-600');
-            buttonElement.classList.add(isCorrect ? 'correct' : 'incorrect');
-            
-            // Cập nhật trạng thái từ trong data
-            updateWordStatus(correctWord, isCorrect);
+
+            // Find the button that was clicked and style it
+            const clickedButton = Array.from(answerButtons).find(btn => btn.textContent === selectedWord.meaning);
+            if (clickedButton) {
+                 clickedButton.classList.remove('bg-blue-600');
+                 clickedButton.classList.add(isCorrect ? 'correct' : 'incorrect');
+            }
+
+            // Update the word status using the correct word object
+            updateWordStatus(currentDeckId, correctWord, isCorrect);
             
             if (isCorrect) {
-                 // Nếu đúng, chuyển ngay sang câu hỏi tiếp theo sau một chút
                  setTimeout(() => {
                     isAnswerLocked = false;
-                    renderLearningPage(currentDeckIndex);
+                    renderNextWord();
                 }, 1000);
             } else {
-                // Nếu sai, hiển thị mẹo ghi nhớ
                 setTimeout(() => {
                     showMemoryTip(correctWord);
                     isAnswerLocked = false;
                 }, 1000);
             }
         }
-
-        // Hiển thị trang học
-        function renderLearningPage(deckIndex) {
-            showPage('learning-page');
-            currentDeckIndex = deckIndex;
-            
-            const deck = decks[currentDeckIndex];
+        
+        // Hiển thị từ tiếp theo trong phiên
+        function renderNextWord() {
+            const deck = decks.find(d => d.id === currentDeckId);
             if (!deck) {
                 showModal("Không tìm thấy bộ từ này.");
                 return;
             }
 
-            currentWord = getNextWordToLearn(deck.words);
+            currentWord = currentSessionWords.shift();
 
             if (!currentWord) {
+                // Khi hết từ trong phiên, hiển thị thông báo và nút reset
                 noWordsMessage.classList.remove('hidden');
+                resetDeckBtn.classList.remove('hidden');
                 answersContainer.innerHTML = '';
                 questionText.textContent = '';
                 learningStatus.textContent = '';
+                
+                if (sessionType === 'learn') {
+                    noWordsMessage.textContent = 'Tuyệt vời! Bạn đã học hết tất cả từ mới.';
+                } else if (sessionType === 'review') {
+                    noWordsMessage.textContent = 'Tuyệt vời! Bạn đã ôn tập hết các từ cần ôn tập hôm nay.';
+                }
+
+                // Nếu là phiên ôn tập, ẩn nút reset
+                if (sessionType === 'review') {
+                    resetDeckBtn.classList.add('hidden');
+                }
+                
                 return;
             }
             
-            // Ẩn mục ghi nhớ và hiển thị các nút đáp án
             memoryTipContainer.classList.add('hidden');
+            resetDeckBtn.classList.add('hidden');
             answersContainer.classList.remove('hidden');
-
             noWordsMessage.classList.add('hidden');
+
             const answers = generateAnswers(currentWord, deck.words);
             
-            // Hiển thị từ và câu hỏi
             questionText.textContent = currentWord.kanji;
             questionText.classList.remove('opacity-0');
             
-            // Cập nhật trạng thái
             const totalWords = deck.words.length;
             const learnedWords = deck.words.filter(w => w.level > 0).length;
-            learningStatus.textContent = `Bộ từ: ${deck.name} | Đã học: ${learnedWords}/${totalWords} | Chuỗi đúng: ${currentWord.correctStreak}`;
+            learningStatus.textContent = `Bộ từ: ${deck.name} | Đã học: ${learnedWords}/${totalWords}`;
 
-            // Hiển thị các nút đáp án
             answersContainer.innerHTML = '';
             answers.forEach(answer => {
                 const button = document.createElement('button');
                 button.textContent = answer.meaning;
                 button.classList.add('button-choice', 'default');
-                button.addEventListener('click', () => handleAnswer(answer, currentWord, button));
+                button.addEventListener('click', () => handleAnswer(answer, currentWord, deck));
                 answersContainer.appendChild(button);
             });
         }
 
-        // Hiển thị trang xem từ
-        function renderViewDeckPage(deckIndex) {
-            showPage('view-deck-page');
-            currentDeckIndex = deckIndex;
+        // Bắt đầu một phiên học/ôn tập
+        function startSession(deckId, type) {
+            showPage('learning-page');
+            currentDeckId = deckId;
+            sessionType = type;
+            const deck = decks.find(d => d.id === deckId);
+            if (!deck) {
+                showModal("Không tìm thấy bộ từ này.");
+                return;
+            }
+            if (type === 'learn') {
+                currentSessionWords = getNewWordsToLearn(deck.words);
+            } else if (type === 'review') {
+                currentSessionWords = getWordsToReview(deck.words);
+            }
+            renderNextWord();
+        }
 
-            const deck = decks[currentDeckIndex];
+        // Đặt lại toàn bộ bộ từ
+        async function resetDeck(deckId) {
+            try {
+                const deck = decks.find(d => d.id === deckId);
+                if (!deck) return;
+
+                deck.words.forEach(word => {
+                    word.level = 0;
+                    word.lastReviewed = new Date(0).toISOString();
+                    word.correctStreak = 0;
+                });
+                
+                const deckRef = doc(getDecksCollectionRef(), deckId);
+                await setDoc(deckRef, { words: deck.words }, { merge: true });
+                showModal("Đã đặt lại tiến độ học tập.");
+                startSession(deckId, 'learn');
+            } catch (error) {
+                console.error("Error resetting deck:", error);
+                showModal("Lỗi: Không thể đặt lại bộ từ.");
+            }
+        }
+
+        // Hiển thị trang xem từ
+        function renderViewDeckPage(deckId) {
+            showPage('view-deck-page');
+            currentDeckId = deckId;
+
+            const deck = decks.find(d => d.id === deckId);
             if (!deck) {
                  showModal("Không tìm thấy bộ từ này.");
                  return;
@@ -515,18 +688,28 @@
             answersContainer.classList.add('hidden');
             memoryTipContainer.classList.remove('hidden');
             correctAnswerText.innerHTML = `${correctWord.kanji} (${correctWord.reading}) - <span class="text-gray-800 font-normal">${correctWord.meaning}</span>`;
-            // Hiển thị mẹo ghi nhớ đã lưu (nếu có)
             mnemonicInput.value = correctWord.mnemonic || '';
         }
         
         // Xử lý khi người dùng nhấn "Tiếp theo"
-        function handleNextQuestion() {
-            if (currentWord) {
-                // Cập nhật mẹo ghi nhớ của người dùng
-                currentWord.mnemonic = mnemonicInput.value.trim();
-                saveData();
+        async function handleNextQuestion() {
+            try {
+                if (currentWord) {
+                    const deck = decks.find(d => d.id === currentDeckId);
+                    if (deck) {
+                        const wordIndex = deck.words.findIndex(w => w.kanji === currentWord.kanji && w.meaning === currentWord.meaning);
+                        if (wordIndex !== -1) {
+                            deck.words[wordIndex].mnemonic = mnemonicInput.value.trim();
+                            const deckRef = doc(getDecksCollectionRef(), currentDeckId);
+                            await setDoc(deckRef, { words: deck.words }, { merge: true });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error saving mnemonic:", error);
+                showModal("Lỗi: Không thể lưu mẹo ghi nhớ.");
             }
-            renderLearningPage(currentDeckIndex);
+            renderNextWord();
         }
 
         // Xử lý tệp tải lên
@@ -542,7 +725,7 @@
             uploadFileBtn.disabled = false;
         }
 
-        function processFile() {
+        async function processFile() {
             const file = csvFileInput.files[0];
             const deckName = deckNameInput.value.trim();
             if (!file || deckName === '') {
@@ -551,7 +734,7 @@
             }
 
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 try {
                     const content = e.target.result;
                     const lines = content.split('\n').filter(line => line.trim() !== '');
@@ -568,8 +751,8 @@
                             reading: parts[2] ? parts[2].trim() : '',
                             level: 0,
                             lastReviewed: new Date(0).toISOString(),
-                            correctStreak: 0, // Thêm thuộc tính correctStreak khi tải lên
-                            mnemonic: "" // Thêm thuộc tính mnemonic
+                            correctStreak: 0,
+                            mnemonic: ""
                         };
                         newWords.push(word);
                     }
@@ -578,11 +761,9 @@
                             name: deckName,
                             words: newWords
                         };
-                        decks.push(newDeck);
-                        saveData();
+                        await saveDeck(newDeck);
                         showModal(`Tải lên thành công! Đã thêm bộ từ "${deckName}" với ${newWords.length} từ.`);
                         showPage('home-page');
-                        renderDecksList();
                     } else {
                         showModal("Tệp không có dữ liệu nào.");
                     }
@@ -604,47 +785,41 @@
 
         learningBackBtn.addEventListener('click', () => {
             showPage('home-page');
-            renderDecksList();
         });
 
         uploadBackBtn.addEventListener('click', () => {
             showPage('home-page');
-            renderDecksList();
         });
         
         viewBackBtn.addEventListener('click', () => {
             showPage('home-page');
-            renderDecksList();
         });
 
-        // Xử lý các nút Học và Xem từ trong danh sách
         decksListContainer.addEventListener('click', (event) => {
             const button = event.target.closest('button');
             if (button) {
                 const action = button.dataset.action;
-                const index = parseInt(button.dataset.index);
-                if (action === 'learn') {
-                    renderLearningPage(index);
+                const deckId = button.dataset.deckId;
+                if (action === 'learn-new') {
+                    startSession(deckId, 'learn');
+                } else if (action === 'review') {
+                    startSession(deckId, 'review');
                 } else if (action === 'view') {
-                    renderViewDeckPage(index);
+                    renderViewDeckPage(deckId);
                 }
             }
         });
         
         startLearningViewBtn.addEventListener('click', () => {
-            renderLearningPage(currentDeckIndex);
+            startSession(currentDeckId, 'learn');
         });
 
         csvFileInput.addEventListener('change', handleFileUpload);
-        deckNameInput.addEventListener('input', handleFileUpload); // Thêm sự kiện input để kiểm tra tên bộ từ
+        deckNameInput.addEventListener('input', handleFileUpload);
         uploadFileBtn.addEventListener('click', processFile);
         
         nextQuestionBtn.addEventListener('click', handleNextQuestion);
-
-        // --- Khởi tạo ứng dụng ---
-        loadData();
-        renderDecksList();
-        showPage('home-page');
+        resetDeckBtn.addEventListener('click', () => resetDeck(currentDeckId));
     </script>
 </body>
 </html>
